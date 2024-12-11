@@ -1,8 +1,12 @@
-# terraform-child-module-template
+# client-tf-templates
 
-This repository serves as a template for creating Terraform [child modules](https://developer.hashicorp.com/terraform/language/modules#child-modules), providing a standardized structure and essential files for efficient module development. It's designed to ensure consistency and best practices across Terraform projects.
+This repository serves as a template for creating Terraform [child](https://opentofu.org/docs/language/modules/#child-modules) and [root](https://opentofu.org/docs/language/modules/#the-root-module) modules, providing a standardized structure and essential files for efficient module development. It's designed to ensure consistency and best practices across Terraform projects.
 
-This README.md serves as the module’s primary documentation and entry point.
+Child module example is provided in [terraform-random-pet](./terraform-random-pet/) directory.
+
+Root module example is provided in [root-module](./root-module/) directory.
+
+This README.md serves as the module's primary documentation and entry point.
 
 ## Recommenations
 
@@ -14,9 +18,9 @@ We recommend to include:
 - Prerequisites and Dependencies: Mention any dependencies, required providers, or external resources.
 - Example Configurations: If applicable, include or link to example code snippets or a separate examples/ directory.
 
-## Repository Structure
+## Module Repository/Directory Structure
 
-Below is the recommended structure for a Terraform child module. You'll fine the best practices for what to include inside each file. This layout helps maintain clarity, and consistency across your infrastructure code:
+Below is a recommended structure for both Terraform child modules and root modules. Inside each file, you’ll find guidance and best practices that help maintain clarity and consistency across your infrastructure code.
 
 ```sh
 .
@@ -24,6 +28,7 @@ Below is the recommended structure for a Terraform child module. You'll fine the
 ├── main.tf
 ├── data.tf        (optional)
 ├── outputs.tf
+├── providers.tf   (root module only)
 ├── variables.tf
 └── versions.tf
 ```
@@ -37,37 +42,14 @@ Below is the recommended structure for a Terraform child module. You'll fine the
 
 ## Requirements
 
-| Name                                                                     | Version |
-| ------------------------------------------------------------------------ | ------- |
-| <a name="requirement_terraform"></a> [terraform](#requirement_terraform) | ~> 1.0  |
-| <a name="requirement_random"></a> [random](#requirement_random)          | ~> 3.0  |
-
 ## Providers
-
-| Name                                                      | Version |
-| --------------------------------------------------------- | ------- |
-| <a name="provider_random"></a> [random](#provider_random) | 3.6.3   |
 
 ## Modules
 
-No modules.
-
 ## Resources
-
-| Name                                                                                                      | Type     |
-| --------------------------------------------------------------------------------------------------------- | -------- |
-| [random_pet.template](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/pet) | resource |
 
 ## Inputs
 
-| Name                                                | Description                   | Type     | Default | Required |
-| --------------------------------------------------- | ----------------------------- | -------- | ------- | :------: |
-| <a name="input_length"></a> [length](#input_length) | The length of the random name | `number` | `2`     |    no    |
-
 ## Outputs
-
-| Name                                                                             | Description                   |
-| -------------------------------------------------------------------------------- | ----------------------------- |
-| <a name="output_random_pet_name"></a> [random_pet_name](#output_random_pet_name) | The generated random pet name |
 
 <!-- END OF PRE-COMMIT-TERRAFORM DOCS HOOK -->
