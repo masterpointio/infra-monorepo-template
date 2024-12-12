@@ -1,8 +1,8 @@
 # terraform-random-pet
 
-This is a dummy child module.
+This is a template child module.
 
-## Recommenations (DO NOT INCLUDE THIS INTO THE REAL README)
+## Documentation Recommendations (DO NOT INCLUDE THIS INTO THE REAL README)
 
 ### Naming
 

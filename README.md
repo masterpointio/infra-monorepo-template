@@ -20,7 +20,7 @@ We recommend to include:
 
 ## Module Repository/Directory Structure
 
-Below is a recommended structure for both Terraform child modules and root modules. Inside each file, you’ll find guidance and best practices that help maintain clarity and consistency across your infrastructure code.
+Below is a recommended structure for both TF child modules and root modules. Inside each file, you’ll find guidance and best practices that help maintain clarity and consistency across your infrastructure code.
 
 ```sh
 .
@@ -37,19 +37,3 @@ Below is a recommended structure for both Terraform child modules and root modul
 
 - Testing and Examples: Consider adding an examples/ directory with sample configurations and a test/ directory (if using tools like terratest or native Terraform testing) to ensure the module works as intended
 - Continuous Improvement: Update documentation and constraints (versions.tf) as Terraform and providers evolve, and as you refine the module’s functionality.
-
-<!-- BEGINNING OF PRE-COMMIT-TERRAFORM DOCS HOOK -->
-
-## Requirements
-
-## Providers
-
-## Modules
-
-## Resources
-
-## Inputs
-
-## Outputs
-
-<!-- END OF PRE-COMMIT-TERRAFORM DOCS HOOK -->

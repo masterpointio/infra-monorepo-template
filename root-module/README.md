@@ -1,13 +1,11 @@
 # root-module
 
-This is a dummy root module.
+This is a template root module.
 
-## Recommenations (DO NOT INCLUDE THIS INTO THE REAL README)
+## Documentation Recommendations (DO NOT INCLUDE THIS INTO THE REAL README)
 
-- Nodule description: Briefly explain what the root module sets up (e.g., infrastructure for a production environment).
-- Usage instructions: Include examples of how to run terraform init, terraform plan, and terraform apply.
-- Documentation of variables and outputs: generate variables (from variables.tf) and outputs (from outputs.tf).
-- Link to child modules and external resources: If the root module references child modules, mention where they’re located and link to their documentation.
+- Module description: Briefly explain what the root module sets up (e.g., infrastructure for RDS Postgres instances).
+- Use [terraform-docs](https://github.com/terraform-docs/terraform-docs) to ensure that variables, outputs, child module, and resource documentation is included.
 - Maintain current information: Keep the README updated as the infrastructure evolves.
 
 ## Structure
