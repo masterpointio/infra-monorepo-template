@@ -12,3 +12,7 @@ whitespace: false
 # Ignore MD041/first-line-heading/first-line-h1
 # Error: First line in a file should be a top-level heading
 MD041: false
+
+# Ignore markdownlint/MD029
+# Error: Ordered list item prefix
+MD029: false

@@ -2,15 +2,15 @@
 
 This is a template root module.
 
+<!-- README TEMPLATE: AFTER READING THE BELOW SECTION, DELETE THE BELOW SECTION AND REPLACE WITH YOUR OWN CONTENT -->
+
 ## Documentation Recommendations (DO NOT INCLUDE THIS INTO THE REAL README)
 
 - Module description: Briefly explain what the root module sets up (e.g., infrastructure for RDS Postgres instances).
 - Use [terraform-docs](https://github.com/terraform-docs/terraform-docs) to ensure that variables, outputs, child module, and resource documentation is included.
 - Maintain current information: Keep the README updated as the infrastructure evolves.
 
-## Structure
-
-Explore the contents of each file to understand their purpose and discover recommended best practices.
+<!-- README TEMPLATE: ENDING DELETE MARKER -->
 
 <!-- BEGINNING OF PRE-COMMIT-TERRAFORM DOCS HOOK -->
 

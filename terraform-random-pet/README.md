@@ -2,6 +2,8 @@
 
 This is a template child module.
 
+<!-- README TEMPLATE: AFTER READING THE BELOW SECTION, DELETE THE BELOW SECTION AND REPLACE WITH YOUR OWN CONTENT -->
+
 ## Documentation Recommendations (DO NOT INCLUDE THIS INTO THE REAL README)
 
 ### Naming
@@ -9,33 +11,23 @@ This is a template child module.
 The repository/directory name should follow this pattern:
 
 ```sh
-terraform-<PROVIDER>-<NAME>
+[terraform-]<PROVIDER>-<NAME>
 ```
 
 Here’s what this means:
 
-1. The repository should start with `terraform-` if your module should be [published to and discovered on the Registry](https://opentofu.org/docs/language/modules/develop/publish/). Even if you don’t intend to publish the module, following this pattern is a good practice that helps differentiate your Terraform child modules from other code in your projects.
-2. Include the provider name: After the prefix, specify the primary provider your module is for, such as aws, google, datadog, etc.
+1. [If it's a separate repository] The repository should start with `terraform-` if your module should be [published to and discovered on the Registry](https://opentofu.org/docs/language/modules/develop/publish/). Even if you don’t intend to publish the module, following this pattern is a good practice that helps differentiate your Terraform child modules from other code in your projects.
+2. Include the provider name: Specify the primary provider your module is for, such as aws, google, datadog, etc.
 3. Use descriptive name: Follow the provider name with a clear and concise identifier that describes the module’s purpose.
 4. Use hyphens to separate words.
 
 Also:
 
 1. Keep name short and focused: While it should be descriptive, avoid overly long names. The goal is to convey the module’s purpose concisely:
-   - Good: terraform-aws-internal-lb
-   - Not so good: terraform-aws-internal-misc-module
-   - Too long: terraform-aws-internal-application-load-balancer-with-extra-rules
+   - Good: `terraform-aws-internal-lb`.
+   - Not so good: `terraform-aws-internal-misc-module`.
+   - Too long: `terraform-aws-internal-application-load-balancer-with-extra-rules`.
 2. Module names should reflect their purpose rather than environment-specific details.
-
-### Structure
-
-Explore the contents of each file to understand their purpose and discover recommended best practices.
-
-## Use Cases
-
-- Generating unique resource names (e.g., S3 buckets, compute instances).
-- Attaching a common prefix to easily identify resources associated with a particular application or environment.
-- Simplifying naming conventions and reducing collisions in environments with multiple resources.
 
 ### Usage
 
@@ -60,6 +52,8 @@ output "pet_name" {
   value = module.sandbox_pet.random_pet_name
 }
 ```
+
+<!-- README TEMPLATE: ENDING DELETE MARKER -->
 
 <!-- BEGINNING OF PRE-COMMIT-TERRAFORM DOCS HOOK -->
 
