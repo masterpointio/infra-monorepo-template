@@ -107,14 +107,14 @@ The principles below apply to both root and child modules, unless otherwise spec
 - Best Practices:
   - Descriptive variables: Use meaningful names and description attributes.
   - Default values: Provide reasonable defaults when possible. For mandatory inputs, omit defaults to enforce explicit user input.
-  - Type vonstraints and validation: Use type constraints and validation blocks to catch incorrect inputs early.
+  - Type constraints and validation: Use type constraints and validation blocks to catch incorrect inputs early.
   - Group related variables: Organize variables logically, adding comments to separate sections if many variables exist.
 
 6. `versions.tf`
 
 - Purpose: Sets Terraform and provider version requirements for consistency and compatibility.
 - Best Practices:
-  - See the detailed version constraints explanation in [Versioning TF and Providers].(#versioning-tf-and-providers)
+  - See the detailed version constraints explanation in [Versioning TF and Providers](#versioning-tf-and-providers).
   - Regular Review: Update constraints as Terraform and providers evolve.
 
 ## Versioning TF and Providers
