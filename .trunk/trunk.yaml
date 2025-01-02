@@ -7,12 +7,12 @@ cli:
 plugins:
   sources:
     - id: trunk
-      ref: v1.6.5
+      ref: v1.6.6
       uri: https://github.com/trunk-io/plugins
 # Many linters and tools depend on runtimes - configure them here. (https://docs.trunk.io/runtimes)
 runtimes:
   enabled:
-    - node@18.12.1
+    - node@18.20.5
     - python@3.10.8
 # This is the section where you manage your linters. (https://docs.trunk.io/check/configuration)
 lint:
@@ -20,15 +20,15 @@ lint:
     # Incompatible with some Terraform features: https://github.com/tenable/terrascan/issues/1331
     - terrascan
   enabled:
-    - tofu@1.8.6
-    - actionlint@1.7.4
-    - checkov@3.2.322
+    - tofu@1.8.8
+    - actionlint@1.7.5
+    - checkov@3.2.345
     - git-diff-check
     - markdownlint@0.43.0
-    - prettier@3.4.1
+    - prettier@3.4.2
     - tflint@0.54.0
-    - trivy@0.56.2
-    - trufflehog@3.84.1
+    - trivy@0.58.1
+    - trufflehog@3.88.0
     - yamllint@1.35.1
   ignore:
     - linters: [tofu]
