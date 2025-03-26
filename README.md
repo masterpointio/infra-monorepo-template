@@ -11,12 +11,12 @@ This includes example configurations and recommendations around the following to
    2. Child module example is provided in the [child-modules/random-pet](./child-modules/random-pet/) directory
 2. [Recommendations for module file structure](#structure) with [file-by-file guidance](#file-by-file-guidance)
 3. [Recommendations for version pinning TF + Providers](#versioning-tf-and-providers)
-4. [Guidance on linting + CI for TF](#tf-linting--ci)
-5. [Frequently Asked Questions](#frequently-asked-questions)
+4. [Managing which TF binary is used per project](#managing-which-tf-binary-is-used-per-project)
+5. [Guidance on linting + CI for TF](#tf-linting--ci)
+6. [Frequently Asked Questions](#frequently-asked-questions)
 
 <!-- TODO
-1. Managing which TF binary is used per project via Aqua
-2. Example Native TF Tests with accompanying GitHub Action workflow for running tests
+1. Example Native TF Tests with accompanying GitHub Action workflow for running tests
  -->
 
 ## Recommendations (TODO: Discuss)
@@ -134,14 +134,16 @@ We’re particular about how we version providers and Terraform/OpenTofu in chil
 
 ### Child Modules
 
-Since child-modules are intended to be used many times throughout your code, it’s important to make it so that they create as little restrictions on the consuming consuming root module as possible.
+<!-- TODO: Update to link Child Modules to Terms blog post once live -->
+
+Since child-modules are intended to be used many times throughout your or others code, it’s important to make it so that they create as little restrictions on the consuming root module as possible.
 
 This means you should:
 
 - Identify the earliest Terraform/OpenTofu and provider versions your child module supports.
 - Use the `>=` operator to ensure that consumers run at least these versions.
 
-By setting a lower bound (e.g., `>= 1.3`) rather than pinning exact versions, you allow root modules to choose their own Terraform and provider versions. This means a root module can upgrade Terraform or providers without requiring updates to all child modules.
+By setting a lower bound (e.g., `>= 1.3`) rather than pinning exact versions, you allow root modules to choose their own Terraform/OpenTofu and provider versions. This means a root module can upgrade their TF or providers versions without requiring updates to the child modules that they consume.
 
 Example:
 
@@ -158,11 +160,13 @@ terraform {
 }
 ```
 
-In this example, the child module only demands a minimum version (Terraform 1.3, Random provider 3.0), letting the root module run newer versions as they become available.
+In this example, the child module only demands a minimum version (Terraform or OpenTofu 1.3, Random provider 3.0), letting the root module run newer versions as they become available.
 
 ### Root Modules
 
-Root modules are intended to be planned and applied and therefore they should be more prescriptive so that they’re called consistently in each case that you instantiate a new root module instance (i.e. a state file).
+<!-- TODO: Update to link Root Modules to Terms blog post once live -->
+
+Root modules are intended to be planned and applied and therefore they should be more prescriptive so that they’re called consistently in each case that you instantiate a new root module instance (i.e. create a new state file).
 
 To accomplish that, you should do the following:
 
@@ -184,7 +188,18 @@ terraform {
 }
 ```
 
-In this example TF is pinned exactly at 1.3.7, the AWS provider is pinned with `~> 5.81.0`, which means it can update to 5.81.1, 5.81.2, etc., but not jump to 5.82.0.
+In this example two things are happening:
+
+1. TF is pinned exactly at `1.3.7`, which ensures your entire team will use the correct version with this root module.
+2. The AWS provider is pinned with `~> 5.81.0`, which means it can update to `5.81.1`, `5.81.2`, etc., but not jump to `5.82.0`.
+
+If you're more willing to use the bleeding edge of providers, you can always use the `~>` operator on the minor version like so `version = "~> 5.81"`. This will enable any new minor version updates and is essentially a shorthand for `>= 5.81.0 && < 6.0`. Be aware that providers do break and this has the possibility to frustrating bugs from providers to affect your project.
+
+## Managing which TF binary is used per project
+
+At Masterpoint, we're big fans of [Aqua](https://aquasecurity.github.io/aqua/) for managing which TF binary is used per project. This allows us to have a single TF binary that is used across our entire project, but still enables us to use root module specific TF versions if needed.
+
+Check out the [aqua.yaml](.aqua/aqua.yaml) file to see how simple it is to use aqua for this project and check out [the Aqua docs](https://aquasecurity.github.io/aqua/getting-started/installation/) on how you can use this tool for your own project.
 
 <!--
 TODO: Work these into other sections.
