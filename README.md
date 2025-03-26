@@ -233,7 +233,7 @@ Check out our [.trunk/trunk.yaml](.trunk/trunk.yaml) file to see how we configur
 
 ### Why do you prefer DRY (Don't Repeat Yourself) Root Modules vs WET (Write Every Time) Root Modules?
 
-We believe IaC should be treated like code and traditional software. You encode some level of business logic into it and consistently copying+pasting that logic as part of your day-to-day processes creates a maintenance burden that we believe should be avoided. This particularly shows up when IaC is managed at scale and we have seen these types of setups lead to a lot of toil and a lot of technical debt.
+We advocate IaC should be treated like code and traditional software. You encode some level of business logic into it, and consistently copying+pasting that logic as part of your day-to-day processes creates a maintenance burden that we believe should be avoided. This particularly shows up when IaC is managed at scale and we have seen these types of setups lead to a lot of toil and a lot of technical debt.
 
 We will write up more on this soon and link to it here.
 
