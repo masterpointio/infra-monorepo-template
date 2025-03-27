@@ -1,6 +1,6 @@
-# root-module
+# template-root-module
 
-This is a template root module.
+This is a template root module that creates a random pet resource. It can be easily copied and updated for other use-cases.
 
 <!-- README TEMPLATE: AFTER READING THE BELOW SECTION, DELETE THE BELOW SECTION AND REPLACE WITH YOUR OWN CONTENT -->
 
