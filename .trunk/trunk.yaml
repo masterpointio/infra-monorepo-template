@@ -22,14 +22,14 @@ lint:
   enabled:
     - tofu@1.9.0
     - actionlint@1.7.7
-    - checkov@3.2.386
+    - checkov@3.2.394
     - git-diff-check
     - markdownlint@0.44.0
     - prettier@3.5.3
-    - tflint@0.55.1
-    - trivy@0.60.0
-    - trufflehog@3.88.17
-    - yamllint@1.36.2
+    - tflint@0.56.0
+    - trivy@0.61.0
+    - trufflehog@3.88.20
+    - yamllint@1.37.0
   ignore:
     - linters: [tofu]
       paths:
