@@ -1,4 +1,8 @@
-# client-tf-templates
+# infra-monorepo-template
+
+# iac-monorepo-template
+
+# terraform-monorepo-template
 
 This repository serves as an example and template for how Masterpoint thinks about organizing a vanilla Terraform or OpenTofu (from now on referred to as "TF") monorepo with root modules, child modules, and accompanying tooling.
 
