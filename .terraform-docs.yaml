@@ -8,7 +8,8 @@ settings:
 
 recursive:
   enabled: true
-  include-main: true
+  path: root-modules
+  include-main: false
 
 output:
   file: README.md
