@@ -8,7 +8,7 @@ settings:
 
 recursive:
   enabled: true
-  include-main: false
+  include-main: true
 
 output:
   file: README.md
