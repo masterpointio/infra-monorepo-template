@@ -4,7 +4,7 @@ This is a template root module that creates a random pet resource. It can be eas
 
 ## Using `tfvars` with [TF Workspaces](https://masterpoint.io/blog/terraform-opentofu-terminology-breakdown/#tf-cli-workspaces)
 
-This root module uses Terraform/OpenTofu workspaces with environment-specific tfvars files for separate TF state files to keep your configuration DRY. This allows you to maintain the same infrastructure code while using different variable values for different environments.
+Terraform/OpenTofu workspaces are used with environment-specific tfvars files for separate TF state files to keep your configuration DRY. This allows you to maintain the same infrastructure code while using different variable values for different environments.
 
 ```bash
 # Set up a new workspace for `dev` -- only needs to be done once
