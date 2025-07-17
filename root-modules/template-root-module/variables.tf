@@ -7,3 +7,9 @@ variable "length" {
     error_message = "The length must be a positive number."
   }
 }
+
+variable "prefix" {
+  description = "The prefix to prepend to the generated name"
+  type        = string
+  default     = "random"
+}
