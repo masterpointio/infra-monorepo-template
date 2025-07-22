@@ -1,9 +1,5 @@
 # infra-monorepo-template
 
-# iac-monorepo-template
-
-# terraform-monorepo-template
-
 This repository serves as an example and template for how Masterpoint thinks about organizing a vanilla Terraform or OpenTofu (from now on referred to as "TF") monorepo with root modules, child modules, and accompanying tooling.
 
 This includes example configurations and recommendations around the following topics:
@@ -17,16 +13,6 @@ This includes example configurations and recommendations around the following to
 5. [Guidance on linting + CI for TF](#tf-linting--ci)
 6. [Renovate to Automate Dependency Updates](#renovate-to-automate-dependency-updates)
 7. [Frequently Asked Questions](#frequently-asked-questions)
-
-## Recommendations
-
-We recommend to include:
-
-- Module Description: Provide a concise explanation of what the module does and its intended use cases.
-- Usage Instructions: Include code snippets demonstrating how to call the module from a [root module](https://developer.hashicorp.com/terraform/language/modules#the-root-module).
-- Inputs & Outputs Summary: List the module’s input variables (with defaults and required ones highlighted) and outputs. We recommend using [`terraform-docs`](https://github.com/terraform-docs/terraform-docs) to keep the summary up-to-date automatically with Trunk & Git hooks. These come configured in this repository at [.terraform-docs.yaml](./.terraform-docs.yaml) -- see Trunk information in the [TF Linting + CI](#tf-linting--ci) section.
-- Prerequisites and Dependencies: Mention any dependencies, required providers, or external resources.
-- Example Configurations: If applicable, include or link to example code snippets or a separate examples/ directory.
 
 ## Structure
 
