@@ -1,17 +1,26 @@
 {
-  "extends": [
-    "config:best-practices",
-    "github>aquaproj/aqua-renovate-config#2.7.5"
+  extends: [
+    'config:best-practices',
+    'github>aquaproj/aqua-renovate-config#2.7.5',
   ],
-  "schedule": ["before 5am on Monday"],
-  "baseBranches": ["main", "master"],
-  "labels": ["auto-upgrade"],
-  "dependencyDashboardAutoclose": true,
-  "enabledManagers": ["terraform"],
-  "terraform": {
-    "ignorePaths": [
-      "**/context.tf",
-      "components/**", // We should upgrade the majority of components manually
-    ]
+  schedule: [
+    'before 5am on Monday',
+  ],
+  baseBranchPatterns: [
+    'main',
+    'master',
+  ],
+  labels: [
+    'auto-upgrade',
+  ],
+  dependencyDashboardAutoclose: true,
+  enabledManagers: [
+    'terraform',
+  ],
+  terraform: {
+    ignorePaths: [
+      '**/context.tf',
+      'components/**',
+    ],
   },
 }
