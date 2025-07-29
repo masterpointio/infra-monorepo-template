@@ -1,0 +1,20 @@
+version: 0.20.0
+formatter: markdown table
+
+settings:
+  anchor: false
+  html: false
+  lockfile: false
+
+recursive:
+  enabled: true
+  path: root-modules
+  include-main: false
+
+output:
+  file: README.md
+  mode: inject
+  template: |-
+    <!-- BEGINNING OF PRE-COMMIT-TERRAFORM DOCS HOOK -->
+    {{ .Content }}
+    <!-- END OF PRE-COMMIT-TERRAFORM DOCS HOOK -->

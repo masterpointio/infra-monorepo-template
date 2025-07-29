@@ -1,33 +1,18 @@
-# example-tf
+# infra-monorepo-template
 
 This repository serves as an example and template for how Masterpoint thinks about organizing a vanilla Terraform or OpenTofu (from now on referred to as "TF") monorepo with root modules, child modules, and accompanying tooling.
 
 This includes example configurations and recommendations around the following topics:
 
-<!-- TODO: Link to what Multi-instance root modules are once https://github.com/masterpointio/masterpoint.io/pull/49 ships -->
-
-1. Example organizational structure for an IaC Monorepo (Multi-instance Root Modules + Child Modules)
+1. Example organizational structure for an IaC Monorepo ([Multi-instance Root Modules](https://masterpoint.io/blog/terraform-opentofu-terminology-breakdown/#multi-instance-root-modules) + Child Modules)
    1. Root module example is provided in the [root-modules/template-root-module](./root-modules/template-root-module/) directory.
    2. Child module example is provided in the [child-modules/random-pet](./child-modules/random-pet/) directory
 2. [Recommendations for module file structure](#structure) with [file-by-file guidance](#file-by-file-guidance)
 3. [Recommendations for version pinning TF + Providers](#versioning-tf-and-providers)
-4. [Managing which TF binary is used per project](#managing-which-tf-binary-is-used-per-project)
+4. [Managing which TF binary is used per project using Aqua](#managing-which-tf-binary-is-used-per-project-using-aqua)
 5. [Guidance on linting + CI for TF](#tf-linting--ci)
-6. [Frequently Asked Questions](#frequently-asked-questions)
-
-<!-- TODO
-1. Example Native TF Tests with accompanying GitHub Action workflow for running tests
- -->
-
-## Recommendations (TODO: Discuss)
-
-We recommend to include:
-
-- Module Description: Provide a concise explanation of what the module does and its intended use cases.
-- Usage Instructions: Include code snippets demonstrating how to call the module from a [root module](https://developer.hashicorp.com/terraform/language/modules#the-root-module).
-- Inputs & Outputs Summary: List the module’s input variables (with defaults and required ones highlighted) and outputs. We recommend using [terraform-docs](https://github.com/terraform-docs/terraform-docs) to keep the summary up-to-date.
-- Prerequisites and Dependencies: Mention any dependencies, required providers, or external resources.
-- Example Configurations: If applicable, include or link to example code snippets or a separate examples/ directory.
+6. [Renovate to Automate Dependency Updates](#renovate-to-automate-dependency-updates)
+7. [Frequently Asked Questions](#frequently-asked-questions)
 
 ## Structure
 
@@ -132,11 +117,9 @@ The principles below apply to both root and child modules, unless otherwise spec
 
 We’re particular about how we version providers and Terraform/OpenTofu in child and root modules. We recommend the following:
 
-### Child Modules
+### [Child Modules](https://masterpoint.io/blog/terraform-opentofu-terminology-breakdown/#child-modules)
 
-<!-- TODO: Update to link Child Modules to Terms blog post once live -->
-
-Since child-modules are intended to be used many times throughout your or others code, it’s important to make it so that they create as little restrictions on the consuming root module as possible.
+Since [child-modules](https://masterpoint.io/blog/terraform-opentofu-terminology-breakdown/#child-modules) are intended to be used many times throughout your or others code, it’s important to make it so that they create as little restrictions on the consuming root module as possible.
 
 This means you should:
 
@@ -162,11 +145,9 @@ terraform {
 
 In this example, the child module only demands a minimum version (Terraform or OpenTofu 1.3, Random provider 3.0), letting the root module run newer versions as they become available.
 
-### Root Modules
+### [Root Modules](https://masterpoint.io/blog/terraform-opentofu-terminology-breakdown/#root-modules)
 
-<!-- TODO: Update to link Root Modules to Terms blog post once live -->
-
-Root modules are intended to be planned and applied and therefore they should be more prescriptive so that they’re called consistently in each case that you instantiate a new root module instance (i.e. create a new state file).
+[Root modules](https://masterpoint.io/blog/terraform-opentofu-terminology-breakdown/#root-modules) are intended to be planned and applied and therefore they should be more prescriptive so that they’re called consistently in each case that you instantiate a new root module instance (i.e. create a new state file).
 
 To accomplish that, you should do the following:
 
@@ -195,7 +176,7 @@ In this example two things are happening:
 
 If you're more willing to use the bleeding edge of providers, you can always use the `~>` operator on the minor version like so `version = "~> 5.81"`. This will enable any new minor version updates and is essentially a shorthand for `>= 5.81.0 && < 6.0`. Be aware that providers do break and this has the possibility to frustrating bugs from providers to affect your project.
 
-## Managing which TF binary is used per project
+## Managing which TF binary is used per project using Aqua
 
 At Masterpoint, we're big fans of [Aqua](https://aquasecurity.github.io/aqua/) for managing which TF binary is used per project. This allows us to have a single TF binary that is used across our entire project, but still enables us to use root module specific TF versions if needed.
 
@@ -228,6 +209,12 @@ There are many tools to format, lint, and ensure consistency of TF code. The too
 As you can see, this is a LOT of checks that trunk is supporting for us and this consolidation on one tool to support this (and much more) is a huge win.
 
 Check out our [.trunk/trunk.yaml](.trunk/trunk.yaml) file to see how we configure this and [check the trunk Code Quality getting started documentation](https://docs.trunk.io/code-quality) on how you can use this tool for your own project.
+
+## Renovate to Automate Dependency Updates
+
+We use [Renovate](https://github.com/apps/renovate) to automatically keep our Terraform and OpenTofu dependencies up-to-date through automated pull requests. This includes providers, modules, and even the Terraform/OpenTofu binaries themselves through Aqua.
+
+This repository comes with configurations available at [.github/renovate.json5](.github/renovate.json5) that are configured to run on a weekly basis. Visit the [Renovate GitHub App page](https://github.com/apps/renovate) to install the app and configure it to run on your repository. There's also an [example tutorial that Renovate](https://github.com/renovatebot/tutorial) has to guide setting up Renovate.
 
 ## Frequently Asked Questions
 
