@@ -178,9 +178,9 @@ If you're more willing to use the bleeding edge of providers, you can always use
 
 ## Managing which TF binary is used per project using Aqua
 
-At Masterpoint, we're big fans of [Aqua](https://aquasecurity.github.io/aqua/) for managing which TF binary is used per project. This allows us to have a single TF binary that is used across our entire project, but still enables us to use root module specific TF versions if needed.
+At Masterpoint, we're big fans of [Aqua](https://aquaproj.github.io/) for managing which TF binary is used per project. This allows us to have a single TF binary that is used across our entire project, but still enables us to use root module specific TF versions if needed.
 
-Check out the [aqua.yaml](.aqua/aqua.yaml) file to see how simple it is to use aqua for this project and check out [the Aqua docs](https://aquasecurity.github.io/aqua/getting-started/installation/) on how you can use this tool for your own project.
+Check out the [aqua.yaml](.aqua/aqua.yaml) file to see how simple it is to use aqua for this project and check out [the Aqua docs](https://aquaproj.github.io/docs/install) on how you can use this tool for your own project.
 
 <!--
 TODO: Work these into other sections.
