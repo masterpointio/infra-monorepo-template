@@ -38,7 +38,7 @@ This approach ensures that:
 
 | Name      | Version  |
 | --------- | -------- |
-| terraform | 1.10.3   |
+| terraform | 1.13.3   |
 | random    | ~> 3.7.2 |
 
 ## Providers
