@@ -14,7 +14,9 @@
     'auto-upgrade',
   ],
   dependencyDashboardAutoclose: true,
+  minimumReleaseAge: '3 days',
   enabledManagers: [
+    'github-actions',
     'terraform',
   ],
   terraform: {
