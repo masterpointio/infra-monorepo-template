@@ -6,29 +6,19 @@ on:
     - cron: 0 8 1 * *
   workflow_dispatch: {}
 
-permissions: read-all
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
 
 jobs:
   trunk-upgrade:
-    runs-on: ubuntu-latest
+    uses: masterpointio/actions/.github/workflows/trunk-upgrade.yaml@7dad35e85d864ca5dda0971dfd3c940cc67ed380 #v0.3.0
+    secrets:
+      MP_BOT_APP_ID: ${{ secrets.MP_BOT_APP_ID }}
+      MP_BOT_APP_PRIVATE_KEY: ${{ secrets.MP_BOT_APP_PRIVATE_KEY }}
+      MASTERPOINT_TEAM_PAT: ${{ secrets.MASTERPOINT_TEAM_PAT }}
     permissions:
-      # For trunk to create PRs
-      contents: write
-      pull-requests: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 #v4.1.7
-
-      - name: Create Token for MasterpointBot App
-        uses: tibdex/github-app-token@3beb63f4bd073e61482598c45c71c1019b59b73a #v2.1.0
-        id: generate-token
-        with:
-          app_id: ${{ secrets.MP_BOT_APP_ID }}
-          private_key: ${{ secrets.MP_BOT_APP_PRIVATE_KEY }}
-
-      - name: Upgrade
-        uses: trunk-io/trunk-action/upgrade@86b68ffae610a05105e90b1f52ad8c549ef482c2 #v1.1.16
-        with:
-          github-token: ${{ steps.generate-token.outputs.token }}
-          reviewers: "@masterpointio/masterpoint-internal"
-          prefix: "chore: "
+      contents: write # needed by github-action-trunk-upgrade
+      pull-requests: write # needed by github-action-trunk-upgrade
