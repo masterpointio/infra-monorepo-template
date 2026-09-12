@@ -29,9 +29,10 @@ jobs:
       - uses: aquaproj/aqua-installer@ea518c135a02fc11ff8024364510c181a5c6b342 # v4.0.3
         with:
           aqua_version: v2.62.3
-      - name: Validate and run all six module tests
+          aqua_opts: -c scripts/aqua.yaml
+      - name: Check runner failure handling
+        run: python3 -m unittest discover -s scripts -p test_runner_contract.py
+      - name: Validate and run all module tests
         env:
           TEST_TOOL: ${{ matrix.tool }}
-        run: |
-          binary=$(aqua which "$TEST_TOOL")
-          python3 scripts/test_random_pet.py "$TEST_TOOL" --binary "$binary"
+        run: python3 scripts/test_random_pet.py "$TEST_TOOL"

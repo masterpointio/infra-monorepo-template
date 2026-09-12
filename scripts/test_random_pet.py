@@ -4,6 +4,7 @@
 import argparse
 import json
 import os
+import signal
 from pathlib import Path
 import shutil
 import subprocess
@@ -20,44 +21,63 @@ RUNS = {
 
 
 def check_results(output, tool):
-    """Both CLIs emit final status events; Terraform also emits progress events."""
-    versions = []
-    runs = []
-    summaries = []
-    files = []
+    """Require the original coverage and every discovered run, including added tests."""
+    versions, summaries, manifests, files, runs = [], [], [], [], []
     for line in output.splitlines():
         event = json.loads(line)
         if event.get("@level") == "error":
             raise ValueError("The test command reported an error diagnostic.")
-        if event.get("type") == "version":
+        kind = event.get("type")
+        if kind == "version":
             versions.append(event)
-        if event.get("type") == "test_run":
+        elif kind == "test_abstract":
+            manifests.append(event["test_abstract"])
+        elif kind == "test_run" and "status" in event["test_run"]:
             run = event["test_run"]
-            if "status" in run:
-                if run["path"] != TEST_FILE or run["status"] != "pass":
-                    raise ValueError(f"Unexpected or unsuccessful run: {run}")
-                runs.append(run["run"])
-        elif event.get("type") == "test_file" and "status" in event["test_file"]:
-            files.append(event["test_file"])
-        elif event.get("type") == "test_summary":
+            if run["status"] != "pass":
+                raise ValueError(f"Unsuccessful run: {run}")
+            runs.append((run["path"], run["run"]))
+        elif kind == "test_file" and "status" in event["test_file"]:
+            file = event["test_file"]
+            if file["status"] != "pass":
+                raise ValueError(f"Unsuccessful test file: {file}")
+            files.append(file["path"])
+        elif kind == "test_summary":
             summaries.append(event["test_summary"])
     if len(versions) != 1 or tool not in versions[0]:
         raise ValueError(f"Expected test output from {tool}, not another executable.")
-    if len(runs) != len(RUNS) or set(runs) != RUNS:
-        raise ValueError(f"Expected all six named runs exactly once; received {runs}.")
-    if len(files) != 1 or files[0]["path"] != TEST_FILE or files[0]["status"] != "pass":
-        raise ValueError("Expected one successfully completed test file.")
-    if len(summaries) != 1 or summaries[0] != {
-        "status": "pass", "passed": 6, "failed": 0, "errored": 0, "skipped": 0,
-    }:
+    if len(manifests) != 1:
+        raise ValueError("Missing or duplicated test discovery event.")
+    discovered = [(path, name) for path, names in manifests[0].items() for name in names]
+    required = {(TEST_FILE, name) for name in RUNS}
+    if not required.issubset(runs):
+        raise ValueError(f"Missing required coverage: {sorted(required - set(runs))}")
+    if len(runs) != len(set(runs)) or sorted(runs) != sorted(discovered):
+        raise ValueError("Not every discovered test completed exactly once.")
+    if sorted(files) != sorted(manifests[0]):
+        raise ValueError("Not every discovered test file completed exactly once.")
+    expected = {"status": "pass", "passed": len(runs), "failed": 0, "errored": 0, "skipped": 0}
+    if len(summaries) != 1 or any(summaries[0].get(k) != v for k, v in expected.items()):
         raise ValueError(f"Incomplete or unsuccessful test summary: {summaries}")
+    return len(runs)
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("tool", choices=("terraform", "tofu"))
     parser.add_argument("--binary", help="Executable path, e.g. from aqua which terraform")
+    parser.add_argument("--timeout", type=int, default=240, help="Seconds per native command (default: 240)")
+    parser.add_argument("--verbose", action="store_true", help="Print raw machine-readable test output")
     args = parser.parse_args()
+    if args.timeout <= 0:
+        raise ValueError("--timeout must be a positive number of seconds.")
+    if args.binary is None:
+        if not shutil.which("aqua"):
+            raise ValueError("Install Aqua, then run aqua -c scripts/aqua.yaml install; or supply --binary /path/to/CLI.")
+        args.binary = subprocess.check_output(
+            ["aqua", "-c", str(ROOT / "scripts/aqua.yaml"), "which", args.tool],
+            cwd=ROOT, text=True, timeout=args.timeout,
+        ).strip()
     if args.binary is not None and not args.binary.strip():
         raise ValueError("The explicit binary path is empty; check aqua which first.")
     binary = shutil.which(args.binary if args.binary is not None else args.tool)
@@ -67,8 +87,9 @@ def main():
     if not (MODULE / TEST_FILE).is_file():
         raise ValueError(f"Missing required test file: {TEST_FILE}")
     # Variable files silently replace the module defaults we intend to test.
-    if any(MODULE.glob("*.tfvars")) or any(MODULE.glob("*.tfvars.json")):
-        raise ValueError("Remove module variable files before testing the defaults.")
+    autoloaded = ("terraform.tfvars", "terraform.tfvars.json", "*.auto.tfvars", "*.auto.tfvars.json")
+    if any(list(MODULE.glob(pattern)) for pattern in autoloaded):
+        raise ValueError("Move auto-loaded variable files out of this child module before testing defaults. Named example .tfvars files are fine.")
     with tempfile.TemporaryDirectory(prefix=f"random-pet-{args.tool}-") as directory:
         work = Path(directory) / "module"
         shutil.copytree(MODULE, work, ignore=shutil.ignore_patterns(
@@ -83,29 +104,68 @@ def main():
 
         def run(*command):
             print(f"+ {args.tool} {' '.join(command)}", flush=True)
-            result = subprocess.run(
+            process = subprocess.Popen(
                 [binary, *command], cwd=work, env=env, text=True,
-                stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=240,
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                start_new_session=(os.name == "posix"),
             )
-            print(result.stdout, end="", flush=True)
-            print(result.stderr, end="", file=sys.stderr, flush=True)
-            if result.returncode:
-                raise subprocess.CalledProcessError(result.returncode, command)
-            return result.stdout
+            try:
+                stdout, stderr = process.communicate(timeout=args.timeout)
+            except (subprocess.TimeoutExpired, KeyboardInterrupt):
+                # Give native tests a chance to clean up, then stop the process group.
+                if os.name == "posix":
+                    os.killpg(process.pid, signal.SIGINT)
+                else:
+                    process.terminate()
+                try:
+                    stdout, stderr = process.communicate(timeout=5)
+                except subprocess.TimeoutExpired:
+                    if os.name == "posix":
+                        os.killpg(process.pid, signal.SIGKILL)
+                    else:
+                        process.kill()
+                    stdout, stderr = process.communicate()
+                print(stdout, end="", flush=True)
+                print(stderr, end="", file=sys.stderr, flush=True)
+                raise
+            if command[0] == "test" and not args.verbose:
+                for line in stdout.splitlines():
+                    try:
+                        event = json.loads(line)
+                    except json.JSONDecodeError:
+                        print(line, flush=True)
+                        continue
+                    if event.get("@message"):
+                        print(event["@message"], flush=True)
+                    diagnostic = event.get("diagnostic", {})
+                    if diagnostic.get("detail"):
+                        print(diagnostic["detail"], flush=True)
+            else:
+                print(stdout, end="", flush=True)
+            print(stderr, end="", file=sys.stderr, flush=True)
+            if process.returncode:
+                raise subprocess.CalledProcessError(process.returncode, command)
+            return stdout
 
         run("version")
         run("init", "-backend=false", "-input=false", "-lockfile=readonly", "-no-color")
         run("validate", "-no-color")
-        check_results(run("test", "-json"), args.tool)
-    print(f"PASS: {args.tool}: all six runs passed; temporary directory removed.")
+        count = check_results(run("test", "-json"), args.tool)
+    print(f"PASS: {args.tool}: {count} runs passed; temporary directory removed.")
 
 
 if __name__ == "__main__":
     try:
         main()
+    except KeyboardInterrupt:
+        print("CANCELLED: stopped the command and removed the temporary directory.", file=sys.stderr)
+        sys.exit(130)
+    except subprocess.TimeoutExpired as error:
+        print(f"FAIL: command timed out after {error.timeout}s. Check registry connectivity or increase --timeout.", file=sys.stderr)
+        sys.exit(1)
     except subprocess.CalledProcessError as error:
         print(f"FAIL: command exited {error.returncode}: {error.cmd}", file=sys.stderr)
         sys.exit(error.returncode if error.returncode > 0 else 1)
-    except (OSError, ValueError, KeyError, subprocess.TimeoutExpired) as error:
+    except (OSError, ValueError, KeyError, TypeError, AttributeError) as error:
         print(f"FAIL: {error}", file=sys.stderr)
         sys.exit(1)
