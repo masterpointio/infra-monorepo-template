@@ -55,6 +55,11 @@ output "pet_name" {
 
 <!-- README TEMPLATE: ENDING DELETE MARKER -->
 
+## Tests
+
+See the repository [native module test instructions](../../README.md#native-module-tests)
+for the six behavioral tests, pinned tools, and local commands used by CI.
+
 <!-- BEGINNING OF PRE-COMMIT-TERRAFORM DOCS HOOK -->
 
 ## Requirements

@@ -1,0 +1,37 @@
+name: Module Tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  random-pet:
+    name: random-pet (${{ matrix.tool }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        tool: [terraform, tofu]
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: aquaproj/aqua-installer@ea518c135a02fc11ff8024364510c181a5c6b342 # v4.0.3
+        with:
+          aqua_version: v2.62.3
+      - name: Validate and run all six module tests
+        env:
+          TEST_TOOL: ${{ matrix.tool }}
+        run: |
+          binary=$(aqua which "$TEST_TOOL")
+          python3 scripts/test_random_pet.py "$TEST_TOOL" --binary "$binary"

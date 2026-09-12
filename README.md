@@ -11,8 +11,9 @@ This includes example configurations and recommendations around the following to
 3. [Recommendations for version pinning TF + Providers](#versioning-tf-and-providers)
 4. [Managing which TF binary is used per project using Aqua](#managing-which-tf-binary-is-used-per-project-using-aqua)
 5. [Guidance on linting + CI for TF](#tf-linting--ci)
-6. [Renovate to Automate Dependency Updates](#renovate-to-automate-dependency-updates)
-7. [Frequently Asked Questions](#frequently-asked-questions)
+6. [Native module tests](#native-module-tests)
+7. [Renovate to Automate Dependency Updates](#renovate-to-automate-dependency-updates)
+8. [Frequently Asked Questions](#frequently-asked-questions)
 
 ## Structure
 
@@ -209,6 +210,64 @@ There are many tools to format, lint, and ensure consistency of TF code. The too
 As you can see, this is a LOT of checks that trunk is supporting for us and this consolidation on one tool to support this (and much more) is a huge win.
 
 Check out our [.trunk/trunk.yaml](.trunk/trunk.yaml) file to see how we configure this and [check the trunk Code Quality getting started documentation](https://docs.trunk.io/code-quality) on how you can use this tool for your own project.
+
+## Native module tests
+
+The example [Random child module](child-modules/random-pet/) has six native tests in
+[tests/random_pet.tftest.hcl](child-modules/random-pet/tests/random_pet.tftest.hcl).
+They check omitted-input defaults, custom input wiring, minimum length, rejection of
+zero and negative lengths, and the generated output. Five runs use `plan`; the last
+uses `apply` with the local Random provider. No cloud resources or credentials are
+needed. Provider and tool downloads require network access.
+
+Install [Aqua](https://aquaproj.github.io/docs/install) and Python 3.10 or newer, then
+run these commands from the repository root:
+
+```sh
+aqua install
+python3 scripts/test_random_pet.py terraform --binary "$(aqua which terraform)"
+python3 scripts/test_random_pet.py tofu --binary "$(aqua which tofu)"
+```
+
+The test toolchain uses Terraform 1.13.3, OpenTofu 1.12.6, and Random 3.9.1. Aqua now
+includes both CLIs and updates its OpenTofu pin from 1.9.0 to the existing Trunk pin.
+This changes the default Aqua OpenTofu binary; it does not change the root example's
+Terraform constraint. The child module's consumer requirements remain TF `>= 1.0`
+and Random `>= 3.0`; these tests do not establish support across that entire range.
+
+The small [test runner](scripts/test_random_pet.py) copies the child module into a
+fresh temporary directory, installs the corresponding test lockfile, runs `init`,
+`validate`, and `test -json`, and requires all six named runs to pass. Missing,
+empty, incomplete, failed, or skipped suites fail the check. Temporary files are
+removed afterward. Local `TF_*`/`TOFU_*` overrides and CLI configuration are ignored,
+and variable files in the child-module directory are rejected so defaults remain
+under test. Run native CLI commands directly when deliberately debugging with a
+different configuration; the commands above are the CI-equivalent check.
+
+Separate [test lockfiles](child-modules/random-pet/tests/locks/) account for the
+Terraform and OpenTofu registry addresses and checksums. They pin test dependencies
+without restricting modules that consume this child. The locks include macOS/Linux
+checksums for ARM64 and AMD64. For a deliberate provider update, use a disposable
+copy of the child module with each CLI, constrain the chosen test provider version
+there, initialize, and run `providers lock -platform=darwin_arm64
+-platform=darwin_amd64 -platform=linux_amd64 -platform=linux_arm64` as one command.
+Copy each resulting `.terraform.lock.hcl` to its tool-specific test lockfile, then
+rerun both checks above. Keep the public module's consumer constraint unchanged.
+
+[Module Tests](.github/workflows/test.yaml) runs on every pull request and push to
+`main`, with separate `random-pet (terraform)` and `random-pet (tofu)` jobs. Each job
+has read-only repository access and a ten-minute timeout. Maintainers can require
+both checks in branch protection after confirming their names in a workflow run;
+this template does not configure that policy. GitHub may require maintainer approval
+before running a first-time contributor's workflows. The existing Lint workflow is
+preserved, including its separate permissions and contributor restrictions.
+
+These tests follow the native HCL approach used in
+[terraform-spacelift-automation](https://github.com/masterpointio/terraform-spacelift-automation/tree/81edc1bdde7e0888152354b0539d0d87ae74ce0d/tests).
+The shared TF-test workflow requires AWS/Spacelift credentials, so this local-only
+example uses a small repository workflow instead. Coverage is limited to this
+child module; it does not certify root-module deployment, documentation freshness,
+or alignment of every repository tool version.
 
 ## Renovate to Automate Dependency Updates
 
