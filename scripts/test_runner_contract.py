@@ -2,6 +2,12 @@
 
 import copy
 import json
+import os
+import signal
+import subprocess
+import sys
+import tempfile
+import time
 from pathlib import Path
 import unittest
 
@@ -46,3 +52,67 @@ class RunnerContract(unittest.TestCase):
                     next(e["test_abstract"] for e in events if e["type"] == "test_abstract")["tests/random_pet.tftest.hcl"].append("never_completed")
                 with self.subTest(tool=tool, case=attack), self.assertRaises(ValueError):
                     check(events)
+
+
+class AquaLookupCleanup(unittest.TestCase):
+    @unittest.skipUnless(os.name == "posix", "POSIX process-group regression")
+    def test_default_lookup_cleans_children(self):
+        for mode in ("timeout", "interrupt"):
+            with self.subTest(mode=mode), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                probe = root / "child.pid"
+                aqua = root / "aqua"
+                # This exercises the default lookup path, not --binary.
+                aqua.write_text("#!" + sys.executable + "\n" + '''import os, subprocess, sys, time
+from pathlib import Path
+child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])
+Path(os.environ["TASK_PROBE_FILE"]).write_text(str(child.pid))
+time.sleep(60)
+''')
+                aqua.chmod(0o755)
+                runner = Path(__file__).parent / "test_random_pet.py"
+                process = subprocess.Popen(
+                    [sys.executable, str(runner), "terraform", "--timeout", "1" if mode == "timeout" else "30"],
+                    env={**os.environ, "PATH": directory + os.pathsep + os.environ.get("PATH", ""), "TASK_PROBE_FILE": str(probe)},
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                )
+                child = None
+                try:
+                    deadline = time.monotonic() + 5
+                    while not probe.exists() and time.monotonic() < deadline:
+                        time.sleep(0.02)
+                    self.assertTrue(probe.exists(), "Aqua stand-in did not start")
+                    child = int(probe.read_text())
+                    if mode == "interrupt":
+                        process.send_signal(signal.SIGINT)
+                    _, stderr = process.communicate(timeout=10)
+                    self.assertEqual(process.returncode, 130 if mode == "interrupt" else 1, stderr)
+                    # Allow init to reap an orphan that has already exited.
+                    deadline = time.monotonic() + 2
+                    alive = True
+                    while time.monotonic() < deadline:
+                        try:
+                            os.kill(child, 0)
+                        except ProcessLookupError:
+                            alive = False
+                            break
+                        # A Linux zombie is terminated, although PID 1 may reap it later.
+                        stat = Path(f"/proc/{child}/stat")
+                        try:
+                            zombie = stat.read_text().split()[2] == "Z"
+                        except FileNotFoundError:
+                            zombie = False
+                        if zombie:
+                            alive = False
+                            break
+                        time.sleep(0.02)
+                    self.assertFalse(alive, "Aqua child survived lookup cleanup")
+                finally:
+                    if process.poll() is None:
+                        process.kill()
+                    if child is not None:
+                        try:
+                            os.kill(child, signal.SIGKILL)
+                        except ProcessLookupError:
+                            pass
+                    process.communicate(timeout=5)

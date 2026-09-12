@@ -62,6 +62,43 @@ def check_results(output, tool):
     return len(runs)
 
 
+def run_process(command, *, cwd, env, timeout):
+    """Capture a command; stop its whole process group on timeout or cancellation."""
+    process = subprocess.Popen(
+        command, cwd=cwd, env=env, text=True,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        start_new_session=(os.name == "posix"),
+    )
+
+    def stop(force=False):
+        try:
+            if os.name == "posix":
+                os.killpg(process.pid, signal.SIGKILL if force else signal.SIGINT)
+            elif force:
+                process.kill()
+            else:
+                process.terminate()
+        except ProcessLookupError:
+            pass  # The command may have finished between timeout and cleanup.
+
+    try:
+        stdout, stderr = process.communicate(timeout=timeout)
+    except (subprocess.TimeoutExpired, KeyboardInterrupt):
+        stop()
+        try:
+            stdout, stderr = process.communicate(timeout=5)
+        except subprocess.TimeoutExpired:
+            stop(force=True)
+            stdout, stderr = process.communicate()
+        finally:
+            # A descendant can outlive its parent even after closing its pipes.
+            stop(force=True)
+        print(stdout, end="", flush=True)
+        print(stderr, end="", file=sys.stderr, flush=True)
+        raise
+    return subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("tool", choices=("terraform", "tofu"))
@@ -74,10 +111,13 @@ def main():
     if args.binary is None:
         if not shutil.which("aqua"):
             raise ValueError("Install Aqua, then run aqua -c scripts/aqua.yaml install; or supply --binary /path/to/CLI.")
-        args.binary = subprocess.check_output(
+        lookup = run_process(
             ["aqua", "-c", str(ROOT / "scripts/aqua.yaml"), "which", args.tool],
-            cwd=ROOT, text=True, timeout=args.timeout,
-        ).strip()
+            cwd=ROOT, env=os.environ.copy(), timeout=args.timeout,
+        )
+        print(lookup.stderr, end="", file=sys.stderr, flush=True)
+        lookup.check_returncode()
+        args.binary = lookup.stdout.strip()
     if args.binary is not None and not args.binary.strip():
         raise ValueError("The explicit binary path is empty; check aqua which first.")
     binary = shutil.which(args.binary if args.binary is not None else args.tool)
@@ -104,30 +144,8 @@ def main():
 
         def run(*command):
             print(f"+ {args.tool} {' '.join(command)}", flush=True)
-            process = subprocess.Popen(
-                [binary, *command], cwd=work, env=env, text=True,
-                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                start_new_session=(os.name == "posix"),
-            )
-            try:
-                stdout, stderr = process.communicate(timeout=args.timeout)
-            except (subprocess.TimeoutExpired, KeyboardInterrupt):
-                # Give native tests a chance to clean up, then stop the process group.
-                if os.name == "posix":
-                    os.killpg(process.pid, signal.SIGINT)
-                else:
-                    process.terminate()
-                try:
-                    stdout, stderr = process.communicate(timeout=5)
-                except subprocess.TimeoutExpired:
-                    if os.name == "posix":
-                        os.killpg(process.pid, signal.SIGKILL)
-                    else:
-                        process.kill()
-                    stdout, stderr = process.communicate()
-                print(stdout, end="", flush=True)
-                print(stderr, end="", file=sys.stderr, flush=True)
-                raise
+            result = run_process([binary, *command], cwd=work, env=env, timeout=args.timeout)
+            stdout, stderr = result.stdout, result.stderr
             if command[0] == "test" and not args.verbose:
                 for line in stdout.splitlines():
                     try:
@@ -143,8 +161,7 @@ def main():
             else:
                 print(stdout, end="", flush=True)
             print(stderr, end="", file=sys.stderr, flush=True)
-            if process.returncode:
-                raise subprocess.CalledProcessError(process.returncode, command)
+            result.check_returncode()
             return stdout
 
         run("version")

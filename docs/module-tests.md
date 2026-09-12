@@ -57,9 +57,10 @@ python3 -m unittest discover -s scripts -p test_runner_contract.py
   another directory. For an explicit alternative binary use `--binary /absolute/path`.
 - **Download failure or timeout:** check access to GitHub and the provider registry.
   HTTP proxy and CA-certificate environment settings are retained. A command gets
-  240 seconds by default; use `--timeout 600` on a slow connection. CI still has a
-  ten-minute job limit. Ctrl-C stops the active native command and its process group,
-  allows a short cleanup period, and removes the temporary directory.
+  240 seconds by default, including Aqua lookup; use `--timeout 600` on a slow
+  connection. CI still has a ten-minute job limit. Timeout or Ctrl-C stops the active
+  command and its process group, including Aqua children, allows a short cleanup
+  period, and removes any test temporary directory.
 - **Unexpected local configuration:** `TF_*`/`TOFU_*` overrides, CLI config, and
   provider development overrides are intentionally ignored for repeatability.
   Custom provider mirrors and offline installation are not supported by this runner.
@@ -72,6 +73,14 @@ python3 -m unittest discover -s scripts -p test_runner_contract.py
 - **Failure details:** rerun with `--verbose` and capture both output streams, for
   example `python3 scripts/test_random_pet.py tofu --verbose > test-run.log 2>&1`.
   The native error and assertion text identify what failed; temporary state is not retained.
+
+## Maintain tool versions
+
+Renovate uses the inherited Aqua preset through `custom.regex` to discover CLI
+versions and registry refs in both Aqua files, plus the workflow's `aqua_version`.
+Keep that manager enabled. Updates follow the existing repository schedule and
+release-age policy; review the proposed changes and both native test jobs.
+The provider locks below still need their separate update procedure.
 
 ## Update test provider locks
 
