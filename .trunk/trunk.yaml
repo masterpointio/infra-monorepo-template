@@ -49,6 +49,13 @@ lint:
       paths:
         - "**/backend.tf.json"
 actions:
+  definitions:
+    - id: terraform-docs
+      display_name: Staged module documentation
+      description: Check both generated READMEs against the staged source and configuration
+      run: python3 scripts/docs.py --staged
+      triggers:
+        - git_hooks: [pre-commit]
   enabled:
     - terraform-docs
     - trunk-announce

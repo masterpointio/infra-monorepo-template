@@ -1,7 +1,8 @@
 # Checking the two Random examples
 
 Start with the [README setup](../README.md#native-module-tests). Python 3.10+ and
-Aqua are required for native checks; Trunk supplies the existing quality checks.
+Aqua are required for native checks; root Aqua installs the Trunk launcher.
+Run `trunk install` to install the configured tools and Git hooks.
 macOS ARM64 and Ubuntu AMD64 are the supported test targets. Commands work from
 another directory when the Python script is referenced by its absolute path.
 This is a two-example harness, not a deployment tool or general infrastructure runner.
@@ -11,12 +12,14 @@ This is a two-example harness, not a deployment tool or general infrastructure r
 ```sh
 aqua install
 export PATH="$(aqua root-dir)/bin:$PATH"
+trunk install
 python3 scripts/test_examples.py terraform --validate-only
 python3 scripts/test_examples.py tofu --validate-only
 python3 scripts/test_examples.py terraform
 python3 scripts/test_examples.py tofu
+python3 scripts/docs.py
 python3 -m unittest discover -s scripts -p 'test_*contract.py'
-trunk check --all
+trunk check --all --no-fix
 ```
 
 Validation explicitly initializes and validates both supplied modules without an
@@ -110,6 +113,8 @@ cleanup; Ctrl-C returns 130. Temporary directories are removed on success/failur
 | Random          | `tests/locks/{terraform,tofu}.lock.hcl`: 3.9.1 | Shared immutable test selection for both modules; manual procedure below    |
 | Aqua            | CI installer: 2.62.3                           | Setup and CLI resolution; update workflow pin and verify fresh install      |
 | Aqua registry   | Both Aqua files: v4.331.0                      | Package definitions; keep both copies aligned                               |
+| Trunk launcher  | Root Aqua: 1.2.7                               | Bootstrap the CLI selected by Trunk config; verify fresh setup              |
+| Prettier        | Trunk: 3.9.6                                   | Shared formatter for managed docs and normal Markdown                       |
 | terraform-docs  | Root Aqua: 0.20.0                              | Existing authored docs generation; review generated diff                    |
 | Trunk / plugins | `.trunk/trunk.yaml`: 1.25.0 / v1.11.0          | Existing lint/security/format pipeline; review configured tools             |
 | Node            | Trunk: 24.11.0                                 | Renovate 44.53.0 requires `^24.11.0`; also verify Prettier and markdownlint |
@@ -191,34 +196,51 @@ python3 scripts/test_examples.py terraform
 python3 scripts/test_examples.py tofu
 ```
 
-## Refresh the affected module documentation
+## Documentation checks and regeneration
 
-Keep Aqua's installed-tool shims on `PATH` (as in the setup above) so the existing
-commit hook can find `terraform-docs`. The inherited hook invokes the generator
-inside each changed module, while the checked-in generator config recursively
-looks for `root-modules` below that directory. It can report that path error and
-still say documentation is up to date. Do not treat that message as proof.
-
-For this configuration, refresh both example READMEs from the repository root with
-a temporary nonrecursive config and the existing formatter. This changes only the
-managed sections and their formatting; review authored prose before committing.
-
-```bash
-(
-  set -eu
-  docs_work=$(mktemp -d)
-  trap 'rm -rf "$docs_work"' EXIT
-  docs_config="$docs_work/config.yaml"
-  sed 's/enabled: true/enabled: false/' .terraform-docs.yaml > "$docs_config"
-  terraform-docs --config "$docs_config" root-modules/template-root-module
-  terraform-docs --config "$docs_config" child-modules/random-pet
-  trunk fmt root-modules/template-root-module/README.md child-modules/random-pet/README.md
-)
+```sh
+python3 scripts/docs.py
+python3 scripts/docs.py --write
+python3 scripts/docs.py
 ```
 
-Repeat the command and confirm the second run leaves the same diff. A dedicated
-generation/drift check and corrected authoring hook remain separate follow-up work;
-the native test jobs do not certify documentation freshness.
+The first/last commands check without changing files or staging anything. `--write`
+regenerates only the managed sections of both example READMEs. Authored text outside
+the existing markers is preserved byte for byte. Review the diff and stage source,
+config and generated sections deliberately; the second regeneration must be identical.
+No provider initialization, state, cloud access or Terraform apply occurs.
+
+Every invocation covers both modules, including helper-only or shared-config edits.
+Current working-tree `.tf`/`.tf.json` files, including untracked source additions,
+are copied into a temporary directory with the READMEs and reviewed configuration.
+Missing/untracked READMEs, damaged/duplicate/reversed markers, unknown modules,
+symlinks and engine-specific sources fail. State, caches, native fixtures and private
+files are not copied. Missing tools, wrong versions, generator/formatter errors or
+incomplete output also fail. All subprocesses share native timeout/cancellation cleanup.
+From another directory, use the script's absolute path. `--binary` and `--formatter`
+accept explicit executables matching the configured pins.
+
+The pipeline runs pinned terraform-docs without recursive discovery and sends its
+Markdown through Trunk's pinned Prettier in the temporary copy. `.prettierrc.json`
+is the shared literal formatter configuration. `.terraform-docs.yaml` accepts only
+the reviewed plain mappings for version, formatter, settings, sorting, recursion
+and the existing output template. Custom content/includes, external header/footer
+paths, YAML aliases/escaped forms, output values and executable Prettier configs
+require a pipeline review; arbitrary templates could silently hide real source
+changes. The helper explicitly requests all six standard sections and disables
+external reads/output paths. Additions to these config forms must preserve the
+copy boundary and drift-detection tests.
+
+The local `terraform-docs` Trunk action replaces the inherited action with
+`python3 scripts/docs.py --staged`. It reads exact Git index blobs, so a freshly
+generated working-tree README cannot hide stale staged documentation. Executing
+helpers must match the index; stage reviewed helper changes before committing.
+The action never stages or regenerates files. The separate `trunk-fmt-pre-commit`
+action retains normal Trunk formatting behavior. If formatting changes the index
+during checking, the docs action fails and asks you to inspect and retry.
+For partial staging, generate/check the source snapshot you intend to commit,
+stage its matching README section, then restore remaining working edits. Review
+`git diff` and `git diff --cached` after any hook failure before retrying.
 
 ## Troubleshooting
 
@@ -239,17 +261,66 @@ the native test jobs do not certify documentation freshness.
   to edited events. Use a conventional title such as `test: complete example checks`;
   after correcting a title, rerun the failed job and verify the new attempt.
 
-## CI scope and remaining limits
+## CI, adoption and optional maintenance
 
-Existing `random-pet (terraform)` / `random-pet (tofu)` jobs preserve child coverage.
-New `example-checks (terraform)` / `example-checks (tofu)` jobs explicitly validate
-both modules without apply, then execute all fixtures. All use the ordinary PR
-checkout (including its actual base), immutable action SHAs, no persisted checkout
-credentials and read-only contents permission. A failure in one engine does not
-cancel the other. The existing shared Lint workflow/permissions are unchanged.
+The [five-check table](../README.md#tf-linting--ci) maps each local command to its
+coverage and actual job name. `example-checks (terraform)` and `example-checks
+(tofu)` validate both modules and run all fixtures; `random-pet (terraform)` and
+`random-pet (tofu)` retain child-only compatibility coverage. `documentation`
+checks both managed READMEs; `full-quality` invokes the complete configured Trunk
+pipeline with `--all --ci --no-fix --cache=false`. There are no path filters, so a
+shared config/helper change cannot skip unchanged modules or scanner targets.
+These repository-local jobs use the ordinary PR checkout or a push to `main`,
+pinned actions, read-only contents access, no persisted checkout credentials and
+no inherited secrets. Network access is needed for tool/provider/scanner downloads.
 
-The saved team reference's shared test workflow requires AWS/Spacelift inputs;
-these Random-only checks retain a repository-local credential-free workflow.
-Fork jobs may need maintainer approval. This does not claim hosted fork/adopter
-verification or enforced branch protection. Generated-doc drift enforcement and
-whole-template article readiness are separate follow-up work.
+The shared PR-only Lint workflow is preserved, including its title check and
+`actions: read`, `checks: write`, `contents: read`, `pull-requests: read` grants.
+Its reporting path is separate from the read-only core jobs. No PR title exists
+on a main-branch push, which runs the repository-local jobs only. Configure branch
+protection/rulesets separately if these checks must block merges; this repository
+does not establish which checks maintainers currently require.
+
+For an adopter-owned copy, enable Actions and allow the pinned checkout/Aqua
+installer actions and the existing public reusable workflow. Install Aqua/Python
+locally, run the setup above, and keep both engine matrices enabled. Core jobs
+require no Masterpoint-only secret. On fork-origin PRs, GitHub/maintainer policy
+may require approval to start jobs, and the shared reporting workflow's write
+permission may be restricted. The read-only core path avoids that write requirement.
+For each adopter, verify a fork-origin PR and an adopter-owned PR/main push on
+the same reviewed commit. Check that all six core jobs actually ran successfully;
+local tests and permissions inspection do not substitute for hosted runs.
+
+Recommended required checks for these examples are `random-pet (terraform)`,
+`random-pet (tofu)`, `example-checks (terraform)`, `example-checks (tofu)`,
+`documentation` and `full-quality`. Select the exact status contexts shown by a
+successful run in the adopter's ruleset. The inherited Lint/title statuses are
+additional policy choices; they have different trigger/reporting requirements.
+This recommendation does not claim any existing ruleset has been configured.
+
+The scheduled/dispatch-only `Trunk Upgrade` workflow is optional maintenance. It
+uses the shared workflow and `MP_BOT_APP_ID`, `MP_BOT_APP_PRIVATE_KEY` and
+`MASTERPOINT_TEAM_PAT`, with contents/PR write permission. An adopter must replace
+those with its own correctly scoped automation credentials and verify the shared
+workflow contract before enabling it. To defer it, disable **Trunk Upgrade** in
+Actions or remove `.github/workflows/trunk-upgrade.yaml` in the adopter's copy.
+No such credentials are needed for the core checks. Renovate proposals separately
+require installing/configuring the Renovate app for the adopter's repository;
+keeping its config alone does not schedule hosted proposals. Defer the app to
+perform the documented updates manually. Neither optional service is a prerequisite
+for local format/lint, validation, tests, docs checks or static scans.
+
+Static scanner policy follows the pinned Trunk plugins: Checkov uses SARIF with
+`--soft-fail` (Trunk interprets findings); Trivy uses `config`, not filesystem
+vulnerability/secret modes; TruffleHog uses filesystem scanning with
+`--only-verified --fail --no-update`; Zizmor checks workflow YAML with the pedantic
+persona. TruffleHog's enabled filesystem mode does not scan Git history.
+The pinned plugins select Checkov for Terraform, CloudFormation, Docker, YAML and
+JSON; Trivy config for Docker, YAML and Terraform; TruffleHog for its filesystem
+file targets; and Zizmor for GitHub workflow YAML. Trunk applies repository ignore
+rules before selecting targets. The explicit Tofu exclusion is `**/backend.tf.json`;
+it does not exclude those files from other configured scanners. Checkov's existing `CKV_TF_1` skip remains explicit, and TerraScan remains
+disabled for the documented compatibility issue. Inspect configured file targets
+and exclusions before generalizing coverage. An artificial scanner event can
+verify failure reporting but cannot prove live secret detection. Safe static
+fixtures must never be initialized or applied.

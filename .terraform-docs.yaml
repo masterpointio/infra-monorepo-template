@@ -7,9 +7,7 @@ settings:
   lockfile: false
 
 recursive:
-  enabled: true
-  path: root-modules
-  include-main: false
+  enabled: false
 
 output:
   file: README.md

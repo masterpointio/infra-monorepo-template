@@ -192,24 +192,31 @@ TODO: Work these into other sections.
 
 ## TF Linting + CI
 
-There are many tools to format, lint, and ensure consistency of TF code. The tool that we recommend is [trunk Code Quality](https://docs.trunk.io/code-quality). This single tool allows us to do the following:
+The [Trunk configuration](.trunk/trunk.yaml) supplies formatting, lint and static
+security checks. The example helpers add explicit validation, native tests and
+generated-document checks. These five checks have distinct coverage:
 
-1. Format our TF code with `terraform fmt` or `tofu fmt` within our IDE and ensure this is run on each commit.
-   1. [This is handled by the trunk `terraform` or `tofu` linter](https://docs.trunk.io/code-quality/linters/supported/tofu).
-2. Explicitly validate both supplied modules with `python3 scripts/test_examples.py terraform --validate-only` and the corresponding `tofu` command.
-   1. The pinned Trunk tofu plugin formats TF but does not enable semantic validation by default. Our [example checks](#native-module-tests) run initialization and validation separately.
-3. Generate documentation for our TF code with `terraform-docs` and ensure it is kept up-to-date on each commit.
-   1. [This is handled by the trunk `terraform-docs` action](https://github.com/trunk-io/plugins/tree/main/actions/terraform-docs), which [Masterpoint originally developed](https://github.com/trunk-io/plugins/pull/966).
-4. Run TFLint against our code to ensure it is written against the best practices.
-   1. [This is handled by the trunk `tflint` linter](https://docs.trunk.io/code-quality/linters/supported/tflint).
-5. Run a TF security scan against our code to ensure we're not introducing any security vulnerabilities.
-   1. [This is handled by the trunk `trivy` linter](https://docs.trunk.io/code-quality/linters/supported/trivy).
-6. Run these checks in a CI pipeline to ensure they're enforced on each PR.
-   1. [This is handled by the trunk-action workflow](https://docs.trunk.io/code-quality/setup-and-installation/github-integration) in the [.github/workflows/lint.yaml](.github/workflows/lint.yaml) file.
+| Check           | Local command                                             | Coverage / hosted job                                                                                                 |
+| --------------- | --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Format and lint | `trunk check --all --no-fix`                              | All configured targets, including Tofu formatting and TFLint; `full-quality`                                          |
+| Validate        | `python3 scripts/test_examples.py ENGINE --validate-only` | Both modules, init without backend or apply; `example-checks (ENGINE)`                                                |
+| Native tests    | `python3 scripts/test_examples.py ENGINE`                 | Both examples and every registered fixture; `example-checks (ENGINE)`, plus retained child-only `random-pet (ENGINE)` |
+| Docs freshness  | `python3 scripts/docs.py`                                 | Managed sections in both READMEs; `documentation`                                                                     |
+| Static security | `trunk check --all --no-fix --scope security`             | Configured Checkov, Trivy, TruffleHog and Zizmor targets/policies; `full-quality` runs these with all other checks    |
 
-As you can see, this is a LOT of checks that trunk is supporting for us and this consolidation on one tool to support this (and much more) is a huge win.
+Run the engine commands once with `terraform` and once with `tofu`. Trunk's Tofu
+plugin formats code; explicit validation belongs to the example helper. Static
+scanners report their configured findings, not a guarantee that code is secure.
+TruffleHog retains verified-only detection; an unverified dummy token is not a
+reliable failure fixture.
 
-Check out our [.trunk/trunk.yaml](.trunk/trunk.yaml) file to see how we configure this and [check the trunk Code Quality getting started documentation](https://docs.trunk.io/code-quality) on how you can use this tool for your own project.
+The [full quality and docs workflow](.github/workflows/quality.yaml) and
+[native workflow](.github/workflows/test.yaml) run on ordinary pull requests and
+pushes to `main`, with read-only contents access. Full checks cover unchanged
+targets even when only a helper/config changes. The existing [shared Lint
+workflow](.github/workflows/lint.yaml) remains PR-only and includes its separate
+title/check-reporting behavior. Maintainers must configure required checks;
+workflow files alone do not enforce branch protection.
 
 ## Native module tests
 
@@ -219,16 +226,22 @@ native behavioral tests. These commands use only the local Random provider; no
 cloud account or Masterpoint credentials are needed. Tool and provider downloads
 require network access.
 
-Install [Aqua](https://aquaproj.github.io/docs/install) (tested with 2.62.3),
-Python 3.10 or newer, and [Trunk](https://docs.trunk.io/code-quality/setup-and-installation).
+Install [Aqua](https://aquaproj.github.io/docs/install) (tested with 2.62.3) and
+Python 3.10 or newer. Root Aqua installs the pinned Trunk launcher; the repository
+selects the Trunk CLI and its formatter/scanner versions.
 From the repository root:
 
 ```sh
 aqua install
 export PATH="$(aqua root-dir)/bin:$PATH"
+trunk install
+python3 scripts/test_examples.py terraform --validate-only
+python3 scripts/test_examples.py tofu --validate-only
 python3 scripts/test_examples.py terraform
 python3 scripts/test_examples.py tofu
-trunk check --all
+python3 scripts/docs.py
+python3 -m unittest discover -s scripts -p 'test_*contract.py'
+trunk check --all --no-fix
 ```
 
 The native checks copy current working-tree sources into isolated directories,
@@ -246,7 +259,11 @@ to `main`. Both engines must pass; required-check settings belong to maintainers
 
 See [the example checking guide](docs/module-tests.md) for the fixture inventory,
 copy boundary, root compatibility policy, adding tests, provider/tool maintenance,
-and troubleshooting. These commands do not enforce generated-document freshness.
+and troubleshooting. To update stale docs, run `python3 scripts/docs.py --write`,
+review the managed-section diff, and stage matching source/config/docs yourself.
+The docs hook checks the staged snapshot without staging files; the existing
+Trunk formatting hook can format staged files. Read the guide before partially
+staging generated docs.
 
 ## Renovate to Automate Dependency Updates
 
