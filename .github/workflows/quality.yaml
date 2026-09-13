@@ -25,6 +25,7 @@ jobs:
       - uses: aquaproj/aqua-installer@ea518c135a02fc11ff8024364510c181a5c6b342 # v4.0.3
         with:
           aqua_version: v2.62.3
+          aqua_opts: -c aqua.yaml
       - name: Check every configured target without fixes
         run: trunk check --all --ci --no-fix --cache=false
 
@@ -41,6 +42,7 @@ jobs:
       - uses: aquaproj/aqua-installer@ea518c135a02fc11ff8024364510c181a5c6b342 # v4.0.3
         with:
           aqua_version: v2.62.3
+          aqua_opts: -c aqua.yaml
       - name: Install the pinned documentation formatter
         run: trunk tools install prettier
       - name: Check documentation failure handling
