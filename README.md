@@ -196,8 +196,8 @@ There are many tools to format, lint, and ensure consistency of TF code. The too
 
 1. Format our TF code with `terraform fmt` or `tofu fmt` within our IDE and ensure this is run on each commit.
    1. [This is handled by the trunk `terraform` or `tofu` linter](https://docs.trunk.io/code-quality/linters/supported/tofu).
-2. Validate our TF code with `terraform validate` or `tofu validate` within our IDE and ensure this is run on each commit.
-   1. [This is handled by the trunk `terraform` or `tofu` linter](https://docs.trunk.io/code-quality/linters/supported/tofu).
+2. Explicitly validate both supplied modules with `python3 scripts/test_examples.py terraform --validate-only` and the corresponding `tofu` command.
+   1. The pinned Trunk tofu plugin formats TF but does not enable semantic validation by default. Our [example checks](#native-module-tests) run initialization and validation separately.
 3. Generate documentation for our TF code with `terraform-docs` and ensure it is kept up-to-date on each commit.
    1. [This is handled by the trunk `terraform-docs` action](https://github.com/trunk-io/plugins/tree/main/actions/terraform-docs), which [Masterpoint originally developed](https://github.com/trunk-io/plugins/pull/966).
 4. Run TFLint against our code to ensure it is written against the best practices.
@@ -213,27 +213,40 @@ Check out our [.trunk/trunk.yaml](.trunk/trunk.yaml) file to see how we configur
 
 ## Native module tests
 
-The example [Random child module](child-modules/random-pet/) includes six native
-behavioral tests. They check defaults, custom inputs, invalid lengths, and the
-actual generated output. The final test applies only a local Random resource;
-no cloud account is needed. Downloads require network access.
+Both the [Random child module](child-modules/random-pet/) and its
+[root example](root-modules/template-root-module/) have explicit validation and
+native behavioral tests. These commands use only the local Random provider; no
+cloud account or Masterpoint credentials are needed. Tool and provider downloads
+require network access.
 
-On macOS or Linux, install [Aqua](https://aquaproj.github.io/docs/install) and
-Python 3.10 or newer. From the repository root:
+Install [Aqua](https://aquaproj.github.io/docs/install) (tested with 2.62.3),
+Python 3.10 or newer, and [Trunk](https://docs.trunk.io/code-quality/setup-and-installation).
+From the repository root:
 
 ```sh
-aqua -c scripts/aqua.yaml install
-python3 scripts/test_random_pet.py terraform
-python3 scripts/test_random_pet.py tofu
+aqua install
+export PATH="$(aqua root-dir)/bin:$PATH"
+python3 scripts/test_examples.py terraform
+python3 scripts/test_examples.py tofu
+trunk check --all
 ```
 
-Test tools have their own [Aqua configuration](scripts/aqua.yaml); installing them
-does not change the root project's default tools. The commands above are also used
-by [CI](.github/workflows/test.yaml), which checks every pull request and push to
-`main`. Both jobs must pass; making them required is a maintainer setting.
+The native checks copy current working-tree sources into isolated directories,
+validate both modules, and execute every registered fixture. They leave no state
+in your checkout. Normal and [scoped check tools](scripts/aqua.yaml) use Terraform
+1.13.3 and OpenTofu 1.12.6; a drift check keeps the duplicate pins aligned with
+Trunk. The supported test targets are macOS ARM64 and Ubuntu AMD64; hosted proof
+for changes is provided by the PR jobs. Windows and macOS Intel are unverified.
 
-See [the module testing guide](docs/module-tests.md) for adding tests, updating
-provider locks, troubleshooting, and the limits of this example.
+For validation without apply, add `--validate-only`. The existing
+`python3 scripts/test_random_pet.py terraform` / `tofu` child-only entry points
+remain supported. [CI](.github/workflows/test.yaml) preserves the child jobs and
+adds `example-checks (terraform)` and `example-checks (tofu)` on every PR and push
+to `main`. Both engines must pass; required-check settings belong to maintainers.
+
+See [the example checking guide](docs/module-tests.md) for the fixture inventory,
+copy boundary, root compatibility policy, adding tests, provider/tool maintenance,
+and troubleshooting. These commands do not enforce generated-document freshness.
 
 ## Renovate to Automate Dependency Updates
 

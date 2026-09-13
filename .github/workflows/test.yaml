@@ -31,8 +31,37 @@ jobs:
           aqua_version: v2.62.3
           aqua_opts: -c scripts/aqua.yaml
       - name: Check runner failure handling
-        run: python3 -m unittest discover -s scripts -p test_runner_contract.py
+        run: python3 -m unittest discover -s scripts -p 'test_*contract.py'
       - name: Validate and run all module tests
         env:
           TEST_TOOL: ${{ matrix.tool }}
         run: python3 scripts/test_random_pet.py "$TEST_TOOL"
+
+  example-checks:
+    name: example-checks (${{ matrix.tool }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        tool: [terraform, tofu]
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: aquaproj/aqua-installer@ea518c135a02fc11ff8024364510c181a5c6b342 # v4.0.3
+        with:
+          aqua_version: v2.62.3
+          aqua_opts: -c scripts/aqua.yaml
+      - name: Check runner and coverage handling
+        run: python3 -m unittest discover -s scripts -p 'test_*contract.py'
+      - name: Validate both examples without apply
+        env:
+          TEST_TOOL: ${{ matrix.tool }}
+        run: python3 scripts/test_examples.py "$TEST_TOOL" --validate-only
+      - name: Test both examples and every root fixture
+        env:
+          TEST_TOOL: ${{ matrix.tool }}
+        run: python3 scripts/test_examples.py "$TEST_TOOL"
