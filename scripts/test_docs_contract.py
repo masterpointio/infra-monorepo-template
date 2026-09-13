@@ -30,6 +30,12 @@ class DocumentationContract(unittest.TestCase):
             (path / 'main.tf').write_bytes(b'variable "original" {}\r\n')
             (path / 'README.md').write_bytes((self.authored + '\n\nstale\n\n' + docs.END + '\r\nTail\n').encode())
         self.git('init', '-q')
+        # Highest-precedence, repository-private attributes keep these raw-byte
+        # fixtures independent of global autocrlf, attributes and clean filters.
+        # They affect only this disposable repository and are never staged.
+        self.attributes = self.root / '.git/info/attributes'
+        self.attributes.parent.mkdir(exist_ok=True)
+        self.attributes.write_text('* -text -eol -ident -filter -working-tree-encoding\n')
         self.git('add', '.')
 
     def git(self, *args):
@@ -52,6 +58,24 @@ class DocumentationContract(unittest.TestCase):
         (self.root / source).write_text('variable "working" {}\n')
         self.assertEqual(self.snapshot(True), staged)
         self.assertNotEqual(self.snapshot()[source], staged[source])
+
+    def test_normalized_index_differs_from_unchanged_working_bytes(self):
+        working = self.snapshot()
+        # Deliberately opt these inputs into Git normalization after the raw
+        # fixture was staged; --renormalize forces Git to reapply clean rules.
+        with self.attributes.open('a') as attributes:
+            attributes.write('*.tf text eol=lf\nREADME.md text eol=lf\n')
+        self.git('add', '--renormalize', '.')
+        index_before = self.git('ls-files', '--stage')
+        staged = self.snapshot(True)
+        for name, original in working.items():
+            if name.endswith(('.tf', '/README.md')):
+                with self.subTest(name=name):
+                    self.assertIn('\r\n', original)
+                    self.assertEqual(staged[name], original.replace('\r\n', '\n'))
+                    self.assertNotEqual(staged[name], original)
+        self.assertEqual(self.snapshot(), working)
+        self.assertEqual(self.git('ls-files', '--stage'), index_before)
 
     def test_untracked_source_is_checked_but_staged_mode_uses_index(self):
         module = next(iter(docs.INVENTORY))
