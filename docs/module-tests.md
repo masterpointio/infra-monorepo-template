@@ -59,7 +59,10 @@ is unchanged.
 
 [The explicit inventory](../scripts/example_policy.py) declares modules, dependencies,
 provider policy, apply permission and fixture manifests. Discovery examines direct
-root/child directories containing `.tf` or `.tf.json` sources. An unknown module
+root/child directories containing `.tf` or `.tf.json` sources. Engine-specific
+`.tofu` and `.tofu.json` files, including same-name shadows and files in test
+directories, fail with a shared-source diagnostic before either engine starts.
+An unknown module
 fails before any executable starts. To replace/add a module, review its resources,
 providers, dependency paths, lock selection and permitted operations, then update
 the inventory, fixtures, docs and CI deliberately. Discovery never authorizes apply.
@@ -77,7 +80,13 @@ and module-top-level tests are rejected so both engines share the same test scop
 Symlinks, undeclared module sources, alternate test modules, mocks, non-Random
 resources/providers, backend/cloud blocks, provisioners, data sources and filesystem
 functions are outside this narrow reviewed execution/copy policy. Heredocs also
-require an explicit boundary review. The small policy guard is not an HCL security
+require an explicit boundary review. The guard reads declaration structure: ordinary
+attributes, labels, comments and literal strings containing words such as `resource`
+or `source` do not declare infrastructure. It inspects filesystem calls in expressions,
+including string interpolations and template directives; escaped template markers
+remain literal. JSON declaration positions follow the same policy. Ambiguous or
+unsupported declaration shapes require review; native CLIs own full syntax validation.
+The policy guard is not an HCL security
 engine or a sandbox for hostile code: review source and tests before executing
 untrusted contributions. Native tools still parse and validate the configuration.
 

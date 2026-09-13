@@ -1,10 +1,10 @@
 """Declared execution boundary for the two reviewed Random examples, not a sandbox."""
 
-import json
 import os
-import re
 from pathlib import Path
 import shutil
+
+from example_syntax import SCHEMAS, read_body
 
 CHILD = "child-modules/random-pet"
 ROOT_MODULE = "root-modules/template-root-module"
@@ -32,78 +32,48 @@ SOURCE = (".tf", ".tf.json")
 TEST = (".tftest.hcl", ".tftest.json")
 
 
-def tokens(text):
-    """Tokenize only enough syntax to apply the narrow review policy."""
-    # Preserve strings while dropping comments. Native CLIs remain the HCL parser.
-    # Heredocs are outside these examples' reviewed source/copy policy.
-    if re.search(r"<<-?\w+", text):
-        raise ValueError("Heredoc requires an explicit example-boundary review.")
-    return [t for t in re.findall(r'"(?:\\.|[^"\\])*"|/\*[\s\S]*?\*/|//[^\n]*|\#[^\n]*|[A-Za-z_][\w-]*|[^\s]', text)
-            if not t.startswith(("/*", "//", "#"))]
-
-
 def inspect_source(path, module, is_test=False):
-    """Reject known execution escapes before any init; not a generic HCL auditor."""
-    text = path.read_text()
-    parts = tokens(text)
-    allowed_sources = {"hashicorp/random"}
-    if module == ROOT_MODULE and not is_test:
-        allowed_sources.add("../../child-modules/random-pet")
-    if path.name.endswith(".json"):
-        def inspect_json(value):
-            if isinstance(value, dict):
-                for key, item in value.items():
-                    if key in {"data", "backend", "cloud", "provisioner", "mock_provider", "override_resource", "override_module", "override_data"}:
-                        raise ValueError(f"{path}: {key} is outside the reviewed Random execution policy.")
-                    if key == "source" and item not in allowed_sources:
-                        raise ValueError(f"{path}: unregistered source {item!r}.")
-                    if key in ("resource", "provider"):
-                        allowed = {"random_pet"} if key == "resource" else {"random"}
-                        if not isinstance(item, dict) or not set(item) <= allowed:
-                            raise ValueError(f"{path}: {key} requires an execution-policy review.")
-                    if is_test and key == "module":
-                        raise ValueError(f"{path}: test module substitution is not permitted.")
-                    inspect_json(item)
-            elif isinstance(value, list):
-                for item in value:
-                    inspect_json(item)
-            elif isinstance(value, str) and re.search(r"\b(file[a-z0-9]*|templatefile)\s*\(", value):
-                raise ValueError(f"{path}: filesystem function requires a copy-boundary review.")
-        inspect_json(json.loads(text))
-        return
-    # This deliberately restrictive token policy handles the supplied HCL examples.
-    words = [t[1:-1] if t.startswith('"') and t.endswith('"') else t for t in parts]
-    forbidden = {"provisioner", "backend", "cloud", "data", "mock_provider", "override_resource", "override_module", "override_data"}
-    for i, word in enumerate(words):
-        after = words[i + 1:i + 3]
-        if word in forbidden and after and (after[0] in ("{", ":") or parts[i + 1].startswith('"')):
-            raise ValueError(f"{path}: {word} is outside the reviewed Random execution policy.")
-        if word == "source" and after and after[0] in ("=", ":"):
-            if len(after) < 2 or after[1] not in allowed_sources:
-                raise ValueError(f"{path}: unregistered source; only {sorted(allowed_sources)} are permitted.")
-        if word in ("resource", "provider") and after:
-            name = after[0]
-            if name not in ({"random_pet"} if word == "resource" else {"random"}):
-                raise ValueError(f"{path}: {word} {name} requires an execution-policy review.")
-    for i, word in enumerate(words):
-        direct = re.fullmatch(r"file[a-z0-9]*|templatefile", word) and words[i + 1:i + 2] == ["("]
-        interpolated = "${" in word and re.search(r"\b(file[a-z0-9]*|templatefile)\s*\(", word)
-        if direct or interpolated:
-            raise ValueError(f"{path}: filesystem function requires a copy-boundary review.")
-    if is_test and any(w == "module" and words[i + 1:i + 2] == ["{"] for i, w in enumerate(words)):
-        raise ValueError(f"{path}: test module substitution is not permitted for these real-example checks.")
+    """Check real declarations; values/labels are not declaration keywords."""
+    body = read_body(path, is_test)
+
+    def inspect(body, context):
+        schema = SCHEMAS.get(context, {})
+        if context in ("source", "tests") and body.attrs:
+            raise ValueError(f"{path}: top-level attributes require an execution-policy review.")
+        for name, labels, child in body.blocks:
+            if name not in schema or len(labels) != schema[name]:
+                raise ValueError(f"{path}: {name} is outside the reviewed execution-policy declarations.")
+            if name in ("resource", "provider") and labels[0] != ("random_pet" if name == "resource" else "random"):
+                raise ValueError(f"{path}: {name} {labels[0]} requires an execution-policy review.")
+            if name == "module":
+                source = child.attrs.get("source")
+                if module != ROOT_MODULE or is_test or source is None or source.literal() != "../../child-modules/random-pet":
+                    raise ValueError(f"{path}: unregistered source; only the root's declared local child is permitted.")
+            if name == "required_providers":
+                for provider, requirement in child.attrs.items():
+                    fields = requirement.object_attrs()
+                    source = fields.get("source")
+                    if provider != "random" or source is None or source.literal() != "hashicorp/random":
+                        raise ValueError(f"{path}: unregistered source/provider; only hashicorp/random is permitted.")
+            inspect(child, name)
+
+    inspect(body, "tests" if is_test else "source")
 
 
 def reject_masked_inputs(path, run_names):
-    """Defaults/file cases must not supply inputs through higher-precedence blocks."""
-    parts = tokens(path.read_text())
-    depth, protected = 0, False
-    for i, token in enumerate(parts):
-        if depth == 0 and token == "run" and i + 1 < len(parts):
-            protected = parts[i + 1].strip('"') in run_names
-        if token == "variables" and (depth == 0 or protected):
-            raise ValueError(f"{path}: variables block masks declared defaults or actual tfvars precedence.")
-        depth += (token == "{") - (token == "}")
+    """Defaults/file cases must not supply higher-precedence variables blocks."""
+    body = read_body(path, is_test=True)
+    if any(name == "variables" or (name == "run" and len(labels) == 1 and labels[0] in run_names and
+           any(kind == "variables" for kind, _, _ in child.blocks))
+           for name, labels, child in body.blocks):
+        raise ValueError(f"{path}: variables block masks declared defaults or actual tfvars precedence.")
+
+
+def reject_engine_sources(directory, names):
+    for name in names:
+        if name.endswith((".tofu", ".tofu.json", ".tofutest.hcl", ".tofutest.json")):
+            raise ValueError(f"Engine-specific source/test shadow is not supported: {directory / name}; "
+                             "use shared .tf/.tf.json and .tftest files so both engines check the same source.")
 
 
 def inspect_tree(root):
@@ -116,8 +86,10 @@ def inspect_tree(root):
         for module in parent.iterdir():
             if module.is_symlink():
                 raise ValueError(f"Symlink outside the copy boundary: {module}")
-            if module.is_dir() and any(p.name.endswith(SOURCE) for p in module.iterdir()):
-                discovered.add(module.relative_to(root).as_posix())
+            if module.is_dir():
+                reject_engine_sources(module, [p.name for p in module.iterdir()])
+                if any(p.name.endswith(SOURCE) for p in module.iterdir()):
+                    discovered.add(module.relative_to(root).as_posix())
     if discovered != set(INVENTORY):
         raise ValueError(f"Module coverage mismatch: unregistered={sorted(discovered - set(INVENTORY))}, missing={sorted(set(INVENTORY) - discovered)}. Review and register dependencies, locks, fixtures and apply policy before execution.")
     selected = {}
@@ -138,9 +110,8 @@ def inspect_tree(root):
                     for auto in folder.glob(pattern):
                         if not (module == ROOT_MODULE and auto == base / "example.auto.tfvars"):
                             raise ValueError(f"Unexpected auto-loaded variable file: {auto}; move it before checking defaults/precedence.")
+            reject_engine_sources(directory, [p.name for p in directory.iterdir()])
             for p in directory.iterdir():
-                if p.name.endswith((".tofutest.hcl", ".tofutest.json")):
-                    raise ValueError(f"Engine-specific test shadow is not supported: {p}")
                 if p.name.endswith(TEST):
                     paths.append(p)
             if varfile:
@@ -149,6 +120,7 @@ def inspect_tree(root):
         # Never silently omit a newly added fixture directory or follow its symlink.
         for directory, subdirs, names in os.walk(base / "tests", followlinks=False):
             directory = Path(directory)
+            reject_engine_sources(directory, names)
             if any((directory / name).is_symlink() for name in subdirs + names):
                 raise ValueError(f"Symlink outside the test copy boundary: {directory}")
             if directory not in declared_dirs and any(name.endswith(TEST) for name in names):
