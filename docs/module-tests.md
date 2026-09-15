@@ -1,98 +1,161 @@
-# Working with the example module tests
+# Checking the two Random examples
 
-Start with the [README commands](../README.md#native-module-tests). This runner is
-for `child-modules/random-pet`; it is not a deployment tool or a general monorepo
-runner. It does not modify your checkout, state, or installed root-project versions.
-macOS and Linux are supported by these instructions; Windows is not verified.
+Start with the [README setup](../README.md#native-module-tests). Python 3.10+ and
+Aqua are required for native checks; Trunk supplies the existing quality checks.
+macOS ARM64 and Ubuntu AMD64 are the supported test targets. Commands work from
+another directory when the Python script is referenced by its absolute path.
+This is a two-example harness, not a deployment tool or general infrastructure runner.
 
-## What runs
-
-Five native runs use `plan`: omitted-input defaults, custom input wiring, minimum
-length, and rejection of zero/negative lengths. The sixth uses `apply` to check
-that the module exports the actual local Random resource ID with the expected
-prefix and number of name components. Native tests clean up that resource.
-
-The runner uses a fresh temporary copy, a read-only provider lockfile, and no
-backend initialization. It runs `init`, `validate`, and `test -json`, checks the
-results, and removes temporary files. It prints readable diagnostics; `--verbose`
-prints raw test events for debugging. Errors, skipped runs, missing original
-coverage, truncated output, or discovered tests without final results fail CI.
-
-The test tools are Terraform 1.13.3 and OpenTofu 1.12.6, with Random 3.9.1 pinned
-in [separate test lockfiles](../child-modules/random-pet/tests/locks/).
-The child module's consumer requirements remain TF `>= 1.0` and Random `>= 3.0`;
-passing these tests does not establish compatibility with every allowed version.
-The root Aqua configuration is unchanged. Root-module compatibility and deployment
-must be verified separately.
-
-## Add or adapt tests
-
-Add a named `run` to the existing `.tftest.hcl` file or another `.tftest.hcl` file
-in the same `tests/` directory. Additional passing tests are accepted automatically;
-every discovered run must finish successfully. Do not add a `.tofutest.hcl` shadow
-of the required file: both CLIs must execute the same example coverage.
-
-When replacing this sample with your own module, deliberately update the module
-path, required test file, and `RUNS` coverage set in
-[the runner](../scripts/test_random_pet.py), along with both lockfiles and the
-workflow's labels. Keep the coverage check: a native CLI can exit successfully
-when it discovers no tests. The runner copies this child directory only; references
-to sibling modules or shared fixtures outside it need an explicitly adapted runner.
-
-This sample's apply is local-only because its only resource is Random. If you add
-cloud resources to your tests, reassess credentials, cost, teardown, and execution
-permissions before enabling those tests on pull requests. This workflow does not
-provide cloud credentials.
-
-The checker itself has regression tests using captured outputs from both CLIs:
+## Commands and coverage
 
 ```sh
-python3 -m unittest discover -s scripts -p test_runner_contract.py
+aqua install
+export PATH="$(aqua root-dir)/bin:$PATH"
+python3 scripts/test_examples.py terraform --validate-only
+python3 scripts/test_examples.py tofu --validate-only
+python3 scripts/test_examples.py terraform
+python3 scripts/test_examples.py tofu
+python3 -m unittest discover -s scripts -p 'test_*contract.py'
+trunk check --all
 ```
 
-## Troubleshoot without changing your normal environment
+Validation explicitly initializes and validates both supplied modules without an
+apply. The test commands also validate each isolated fixture before running it.
+`--module child-modules/random-pet` or `--module root-modules/template-root-module`
+selects one example; the inventory/boundary check still examines both. Existing
+`test_random_pet.py terraform` / `tofu` commands remain child-only aliases.
 
-- **Aqua not found:** install it, then run `aqua -c scripts/aqua.yaml install`.
-  The runner resolves the scoped tools automatically, including when invoked from
-  another directory. For an explicit alternative binary use `--binary /absolute/path`.
-- **Download failure or timeout:** check access to GitHub and the provider registry.
-  HTTP proxy and CA-certificate environment settings are retained. A command gets
-  240 seconds by default, including Aqua lookup; use `--timeout 600` on a slow
-  connection. CI still has a ten-minute job limit. Timeout or Ctrl-C stops the active
-  command and its process group, including Aqua children, allows a short cleanup
-  period, and removes any test temporary directory.
-- **Unexpected local configuration:** `TF_*`/`TOFU_*` overrides, CLI config, and
-  provider development overrides are intentionally ignored for repeatability.
-  Custom provider mirrors and offline installation are not supported by this runner.
-  Use native CLI commands in a disposable module copy for those workflows.
-- **Defaults check blocked:** move auto-loaded `terraform.tfvars`, `*.auto.tfvars`,
-  or their JSON equivalents outside this child directory. A named example such as
-  `examples.tfvars` is fine; it is not automatically loaded.
-- **Lockfile or checksum error:** do not bypass verification or use `init -upgrade`
-  in CI. Follow the deliberate update procedure below and review both lock changes.
-- **Failure details:** rerun with `--verbose` and capture both output streams, for
-  example `python3 scripts/test_random_pet.py tofu --verbose > test-run.log 2>&1`.
-  The native error and assertion text identify what failed; temporary state is not retained.
+| Module / fixture        | Native runs                                                                             | Input source                                                               |
+| ----------------------- | --------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| Child / `tests`         | defaults, custom_inputs, minimum_length, zero_length, negative_length, generated_output | Declared defaults or explicit native test variables                        |
+| Root / `tests`          | custom_inputs, minimum_length, zero_length, negative_length                             | Explicit native test variables for behavioral boundaries                   |
+| Root / `tests/defaults` | defaults                                                                                | Declared defaults; omit only `example.auto.tfvars` from the isolated copy  |
+| Root / `tests/example`  | shipped_example                                                                         | Actual working-tree `example.auto.tfvars`                                  |
+| Root / `tests/dev`      | dev_file                                                                                | Actual `example.auto.tfvars`, then explicit `-var-file=tfvars/dev.tfvars`  |
+| Root / `tests/prod`     | prod_file                                                                               | Actual `example.auto.tfvars`, then explicit `-var-file=tfvars/prod.tfvars` |
 
-## Maintain tool versions
+Each fixture has its own required manifest and native invocation. Every discovered
+file/run must pass exactly once; empty, missing, skipped, duplicate, errored or
+truncated results fail. Added passing tests are allowed without changing a total.
+The root has eight required runs; the child keeps its original six.
 
-Renovate uses the inherited Aqua preset through `custom.regex` to discover CLI
-versions and registry refs in both Aqua files, plus the workflow's `aqua_version`.
-Keep that manager enabled. Updates follow the existing repository schedule and
-release-age policy; review the proposed changes and both native test jobs.
-The provider locks below still need their separate update procedure.
+The root default length is 2 and prefix is `random`. The shipped auto-file changes
+length to 1. Dev/prod files override the prefix, while length remains 1 according
+to actual CLI variable-file precedence. Workspaces select state, not tfvars files.
+Default and file-precedence tests intentionally contain no `variables` blocks:
+those blocks would override the inputs the tests are meant to observe.
+
+Root positive tests apply the real local child and assert its actual exported
+output, expected prefix and number of words. The date must equal either the UTC
+plan date (`plantimestamp()`) or assertion date (`timestamp()`), allowing a check
+that crosses midnight without accepting an arbitrary eight-digit date. No clock
+input is added to the production module. The example's existing use of `timestamp()`
+means a later-day plan/apply can change the name; this work preserves that behavior.
+Zero/negative cases use named `expect_failures = [var.length]`. Null and fractional
+inputs have not been given new validation rules; the public positive-number contract
+is unchanged.
+
+## Isolation and adding coverage
+
+[The explicit inventory](../scripts/example_policy.py) declares modules, dependencies,
+provider policy, apply permission and fixture manifests. Discovery examines direct
+root/child directories containing `.tf` or `.tf.json` sources. Engine-specific
+`.tofu` and `.tofu.json` files, including same-name shadows and files in test
+directories, fail with a shared-source diagnostic before either engine starts.
+An unknown module
+fails before any executable starts. To replace/add a module, review its resources,
+providers, dependency paths, lock selection and permitted operations, then update
+the inventory, fixtures, docs and CI deliberately. Discovery never authorizes apply.
+Only the reviewed Random examples are authorized by this harness.
+
+The copy uses current working-tree source/test/tfvars bytes, including uncommitted
+edits. It preserves the root's relative child path and copies only selected module
+sources, selected native tests, declared tfvars and the engine's test lock. State,
+plans, `.terraform`, ordinary consumer locks, personal files and local configuration
+are excluded. Nested directories are not recursively treated as independent modules.
+New test directories require a declared fixture; extra `.tftest.hcl` or `.tftest.json`
+files in existing selected directories run automatically. Engine-specific test shadows
+and module-top-level tests are rejected so both engines share the same test scope.
+
+Symlinks, undeclared module sources, alternate test modules, mocks, non-Random
+resources/providers, backend/cloud blocks, provisioners, data sources and filesystem
+functions are outside this narrow reviewed execution/copy policy. Heredocs also
+require an explicit boundary review. The guard reads declaration structure: ordinary
+attributes, labels, comments and literal strings containing words such as `resource`
+or `source` do not declare infrastructure. It inspects filesystem calls in expressions,
+including string interpolations and template directives; escaped template markers
+remain literal. JSON declaration positions follow the same policy. Ambiguous or
+unsupported declaration shapes require review; native CLIs own full syntax validation.
+The policy guard is not an HCL security
+engine or a sandbox for hostile code: review source and tests before executing
+untrusted contributions. Native tools still parse and validate the configuration.
+
+Unexpected auto-loaded files (`terraform.tfvars`, `*.auto.tfvars`, and JSON forms)
+in modules or selected test directories fail. The sole allowed auto-file is the
+root's declared example. Do not add higher-precedence variables to a required
+defaults/file fixture. The child default safeguard remains strict.
+
+Native commands run with no backend initialization, empty CLI config, sanitized
+`TF_*`/`TOFU_*` environment and separate temporary state/provider initialization.
+HTTP proxy and CA settings are retained for downloads. No cloud credentials are
+needed. Every subprocess, including Aqua lookup, has a timeout and process-group
+cleanup; Ctrl-C returns 130. Temporary directories are removed on success/failure.
+
+## Versions and maintenance
+
+| Tool            | Pin source / tested selection                  | Purpose and update path                                                     |
+| --------------- | ---------------------------------------------- | --------------------------------------------------------------------------- |
+| Terraform       | Both Aqua files: 1.13.3                        | Normal and native checks; review both-engine runs after updates             |
+| OpenTofu        | Both Aqua files and Trunk: 1.12.6              | Normal checks and Trunk formatting; drift checked before execution          |
+| Random          | `tests/locks/{terraform,tofu}.lock.hcl`: 3.9.1 | Shared immutable test selection for both modules; manual procedure below    |
+| Aqua            | CI installer: 2.62.3                           | Setup and CLI resolution; update workflow pin and verify fresh install      |
+| Aqua registry   | Both Aqua files: v4.331.0                      | Package definitions; keep both copies aligned                               |
+| terraform-docs  | Root Aqua: 0.20.0                              | Existing authored docs generation; review generated diff                    |
+| Trunk / plugins | `.trunk/trunk.yaml`: 1.25.0 / v1.11.0          | Existing lint/security/format pipeline; review configured tools             |
+| Node            | Trunk: 24.11.0                                 | Renovate 44.53.0 requires `^24.11.0`; also verify Prettier and markdownlint |
+| Python          | Caller: 3.10+; Trunk: 3.14.4                   | Stdlib native runner; Trunk-managed scanner runtime is separate             |
+
+The root's `>= 1.12.6, <= 1.13.3` is the bounded compatibility interval spanning
+our two supported engine versions. TF constraints cannot express an OR of exact
+Terraform/OpenTofu versions, and an exact `1.13.3` rejects the supported OpenTofu
+binary. Exact development/check versions remain in Aqua; only those two endpoints
+are tested, not every admitted version. The reusable child keeps `>= 1.0` and
+Random `>= 3.0`. The root keeps Random `~> 3.9.0`. These are consumer requirements,
+not the test provider selection.
+
+Renovate's inherited Aqua preset (`custom.regex`) discovers both engine/registry
+pins and CI's Aqua pin under the existing schedule and release-age policy. Keep
+that manager enabled. After changing versions, run both full native commands,
+regressions and `trunk check --all`. A bounded preflight rejects diverging Aqua
+engine/registry pins or a Trunk OpenTofu mismatch. Update the compatibility constraint
+and generated module docs if the supported interval changes.
+
+The prior Node 22 runtime fails full Renovate extraction with `RegExp.escape is not
+a function`; config-validator success alone does not prove extraction works. Use
+the Trunk-installed Node/runtime, not an out-of-band installation:
+
+```sh
+trunk install
+LOG_LEVEL=debug .trunk/tools/renovate --platform=local --dry-run=extract
+```
+
+Inspect the extraction log's package files for both Aqua configs, the workflow
+Aqua version and inherited preset. This local mode does not create update PRs.
+Without a GitHub token, extraction can succeed while release lookup reports token
+requirements. Discovery is not evidence of hosted scheduled update proposals.
 
 ## Update test provider locks
 
-These intentionally named test locks are copied into temporary directories, so
-ordinary consumers do not inherit their pins. They are not assumed to receive
-automatic Renovate lock maintenance. Update both together and rerun both test jobs.
-Only test-tool pins belong in `scripts/aqua.yaml`; avoid changing root tool versions
-as a side effect of maintaining tests.
+Both modules initialize from the child's engine-specific Random locks. Terraform
+and OpenTofu registry identities remain separate. The root's compatible provider
+constraint uses this same tested selection; ordinary consumer locks are unchanged.
+Never disable checksums or use `init -upgrade` in test CI. Updates remain deliberate
+and manual, not presumed to receive automatic Renovate lock maintenance.
 
-From the repository root, run the following in Bash. Set `RANDOM_VERSION` to the
-chosen release. The block works in temporary directories, then replaces only the
-two test locks. Review the diff before committing; provider downloads need network access.
+From the repository root, run this in Bash after choosing `RANDOM_VERSION`. It
+replaces only the two test locks after both succeed. Review the diff and rerun both
+engines. Locks include checksums for macOS/Linux ARM64/AMD64; checksum availability
+does not itself establish that every platform was tested.
 
 ```bash
 (
@@ -124,20 +187,69 @@ EOF
       "child-modules/random-pet/tests/locks/$tool.lock.hcl"
   done
 )
-python3 scripts/test_random_pet.py terraform
-python3 scripts/test_random_pet.py tofu
+python3 scripts/test_examples.py terraform
+python3 scripts/test_examples.py tofu
 ```
 
-## CI and coverage limits
+## Refresh the affected module documentation
 
-`Module Tests` runs separate `random-pet (terraform)` and `random-pet (tofu)` jobs
-on pull requests and pushes to `main`. Jobs have read-only repository access and
-no inherited deployment secrets. Fork workflows may need maintainer approval.
-Confirm the job names in an actual run before requiring them in branch protection.
-The existing Lint workflow and its separate permissions are preserved.
+Keep Aqua's installed-tool shims on `PATH` (as in the setup above) so the existing
+commit hook can find `terraform-docs`. The inherited hook invokes the generator
+inside each changed module, while the checked-in generator config recursively
+looks for `root-modules` below that directory. It can report that path error and
+still say documentation is up to date. Do not treat that message as proof.
 
-Tests follow the native HCL approach used in
-[terraform-spacelift-automation](https://github.com/masterpointio/terraform-spacelift-automation/tree/81edc1bdde7e0888152354b0539d0d87ae74ce0d/tests).
-The shared test workflow requires AWS/Spacelift inputs; this sample uses a small
-credential-free workflow instead. These checks do not certify root deployment,
-documentation freshness, or alignment of every tool in the repository.
+For this configuration, refresh both example READMEs from the repository root with
+a temporary nonrecursive config and the existing formatter. This changes only the
+managed sections and their formatting; review authored prose before committing.
+
+```bash
+(
+  set -eu
+  docs_work=$(mktemp -d)
+  trap 'rm -rf "$docs_work"' EXIT
+  docs_config="$docs_work/config.yaml"
+  sed 's/enabled: true/enabled: false/' .terraform-docs.yaml > "$docs_config"
+  terraform-docs --config "$docs_config" root-modules/template-root-module
+  terraform-docs --config "$docs_config" child-modules/random-pet
+  trunk fmt root-modules/template-root-module/README.md child-modules/random-pet/README.md
+)
+```
+
+Repeat the command and confirm the second run leaves the same diff. A dedicated
+generation/drift check and corrected authoring hook remain separate follow-up work;
+the native test jobs do not certify documentation freshness.
+
+## Troubleshooting
+
+- **Missing Aqua/tool:** run `aqua install`; the scoped `aqua -c scripts/aqua.yaml install`
+  remains supported. Use `--binary /absolute/path` for an explicitly selected binary
+  matching the configured engine/version. Empty/mismatched paths fail clearly.
+- **Downloads, registry or checksum failure:** inspect the native diagnostic; restore
+  connectivity or deliberately refresh locks. Offline mirrors and development provider
+  overrides are not supported. Do not bypass lock verification to obtain a pass.
+- **Timeout/cancellation:** each command gets 240 seconds, including Aqua. Use
+  `--timeout 600` for a slow connection; CI still has a ten-minute job bound. Cleanup
+  signals the process group, allows five seconds, then kills remaining descendants.
+- **Invalid config/assertion:** use `--verbose` for raw native events. Both streams
+  retain diagnostics, and failures identify the engine, module, fixture and command.
+- **Inventory/copy failure:** review the named path and register intentional additions.
+  Move ambient variable files aside yourself; the checker does not modify them.
+- **Title check after a PR title edit:** the existing Lint trigger does not subscribe
+  to edited events. Use a conventional title such as `test: complete example checks`;
+  after correcting a title, rerun the failed job and verify the new attempt.
+
+## CI scope and remaining limits
+
+Existing `random-pet (terraform)` / `random-pet (tofu)` jobs preserve child coverage.
+New `example-checks (terraform)` / `example-checks (tofu)` jobs explicitly validate
+both modules without apply, then execute all fixtures. All use the ordinary PR
+checkout (including its actual base), immutable action SHAs, no persisted checkout
+credentials and read-only contents permission. A failure in one engine does not
+cancel the other. The existing shared Lint workflow/permissions are unchanged.
+
+The saved team reference's shared test workflow requires AWS/Spacelift inputs;
+these Random-only checks retain a repository-local credential-free workflow.
+Fork jobs may need maintainer approval. This does not claim hosted fork/adopter
+verification or enforced branch protection. Generated-doc drift enforcement and
+whole-template article readiness are separate follow-up work.

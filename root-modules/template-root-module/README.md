@@ -22,6 +22,19 @@ This approach ensures that:
 - State files are automatically separated by workspace
 - You can easily switch between environments
 
+## Example behavior and checks
+
+The declared defaults are length 2 and prefix `random`; the shipped
+`example.auto.tfvars` changes length to 1. `-var-file=tfvars/dev.tfvars` or
+`tfvars/prod.tfvars` explicitly overrides the prefix while retaining that length.
+Selecting a workspace alone never selects a tfvars file. The dated prefix uses UTC
+`YYYYMMDD`; a later-day apply can change the generated name.
+
+Use the repository [example checking commands](../../docs/module-tests.md) for
+isolated validation and native tests with Terraform 1.13.3 and OpenTofu 1.12.6.
+The root's bounded version interval admits both engines; only that pinned pair is
+tested. Normal source and consumer contracts are used, with no cloud infrastructure.
+
 <!-- README TEMPLATE: AFTER READING THE BELOW SECTION, DELETE THE BELOW SECTION AND REPLACE WITH YOUR OWN CONTENT -->
 
 ## Documentation Recommendations (DO NOT INCLUDE THIS INTO THE REAL README)
@@ -36,10 +49,10 @@ This approach ensures that:
 
 ## Requirements
 
-| Name      | Version  |
-| --------- | -------- |
-| terraform | 1.13.3   |
-| random    | ~> 3.7.2 |
+| Name      | Version              |
+| --------- | -------------------- |
+| terraform | >= 1.12.6, <= 1.13.3 |
+| random    | ~> 3.9.0             |
 
 ## Providers
 
@@ -47,9 +60,9 @@ No providers.
 
 ## Modules
 
-| Name       | Source                         | Version |
-| ---------- | ------------------------------ | ------- |
-| random_pet | ../../child-modules/random-pet | n/a     |
+| Name        | Source                         | Version |
+| ----------- | ------------------------------ | ------- |
+| random\_pet | ../../child-modules/random-pet | n/a     |
 
 ## Resources
 
@@ -64,8 +77,8 @@ No resources.
 
 ## Outputs
 
-| Name            | Description                   |
-| --------------- | ----------------------------- |
-| random_pet_name | The generated random pet name |
+| Name              | Description                   |
+| ----------------- | ----------------------------- |
+| random\_pet\_name | The generated random pet name |
 
 <!-- END OF PRE-COMMIT-TERRAFORM DOCS HOOK -->

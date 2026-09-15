@@ -137,3 +137,25 @@ time.sleep(60)
 
     def test_failed_setup_does_not_mask_assertion_or_leave_aqua(self):
         self.exercise_lookup("early failure")
+
+
+@unittest.skipUnless(os.name == "posix", "POSIX process-group regression")
+class SuccessfulCommandCleanup(unittest.TestCase):
+    def test_success_stops_descendant_that_closed_captured_pipes(self):
+        """A successful parent must not leave a detached helper running."""
+        from module_checks import run_process
+        command = [sys.executable, "-c", '''import subprocess, sys
+child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"],
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+print(child.pid)
+''']
+        result = run_process(command, cwd=Path(__file__).parent, env=os.environ.copy(), timeout=5)
+        self.assertEqual(result.returncode, 0)
+        pid = int(result.stdout.strip())
+        try:
+            assert_stopped(self, pid)
+        finally:
+            try:
+                os.kill(pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
