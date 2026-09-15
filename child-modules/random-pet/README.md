@@ -56,19 +56,19 @@ output "pet_name" {
 <!-- README TEMPLATE: ENDING DELETE MARKER -->
 
 <!-- BEGINNING OF PRE-COMMIT-TERRAFORM DOCS HOOK -->
-
+<!-- prettier-ignore-start -->
 ## Requirements
 
-| Name      | Version |
-| --------- | ------- |
-| terraform | >= 1.0  |
-| random    | >= 3.0  |
+| Name | Version |
+|------|---------|
+| terraform | >= 1.0 |
+| random | >= 3.0 |
 
 ## Providers
 
-| Name   | Version |
-| ------ | ------- |
-| random | >= 3.0  |
+| Name | Version |
+|------|---------|
+| random | >= 3.0 |
 
 ## Modules
 
@@ -76,21 +76,21 @@ No modules.
 
 ## Resources
 
-| Name                                                                                                      | Type     |
-| --------------------------------------------------------------------------------------------------------- | -------- |
+| Name | Type |
+|------|------|
 | [random_pet.template](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/pet) | resource |
 
 ## Inputs
 
-| Name   | Description                       | Type     | Default | Required |
-| ------ | --------------------------------- | -------- | ------- | :------: |
-| length | The length of the random name.    | `number` | `2`     |    no    |
-| prefix | A string to prefix the name with. | `string` | `null`  |    no    |
+| Name | Description | Type | Default | Required |
+|------|-------------|------|---------|:--------:|
+| length | The length of the random name. | `number` | `2` | no |
+| prefix | A string to prefix the name with. | `string` | `null` | no |
 
 ## Outputs
 
-| Name              | Description                   |
-| ----------------- | ----------------------------- |
+| Name | Description |
+|------|-------------|
 | random\_pet\_name | The generated random pet name |
-
+<!-- prettier-ignore-end -->
 <!-- END OF PRE-COMMIT-TERRAFORM DOCS HOOK -->

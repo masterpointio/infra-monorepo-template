@@ -2,6 +2,10 @@
 # `terraform-docs` pre-commit action and in CI by the `tf-docs` job in
 # .github/workflows/lint.yaml. Do not enable `recursive` here: its `path` is resolved
 # relative to the module being documented, which makes every per-directory run fail.
+#
+# The output template wraps the generated block in prettier-ignore markers so trunk's
+# prettier leaves it exactly as terraform-docs wrote it. That keeps the committed docs
+# byte-for-byte identical to a fresh run, which is what the CI check compares against.
 version: 0.20.0
 formatter: markdown table
 
@@ -15,5 +19,7 @@ output:
   mode: inject
   template: |-
     <!-- BEGINNING OF PRE-COMMIT-TERRAFORM DOCS HOOK -->
+    <!-- prettier-ignore-start -->
     {{ .Content }}
+    <!-- prettier-ignore-end -->
     <!-- END OF PRE-COMMIT-TERRAFORM DOCS HOOK -->

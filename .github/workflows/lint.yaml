@@ -11,8 +11,10 @@ name: Lint
 #            docs still land on main. This job regenerates the docs for every module against the
 #            PR's merge commit and fails if the result differs from what is committed.
 #
-#            To fix a failure, regenerate the docs locally and commit the result:
-#              terraform-docs --config .terraform-docs.yaml <module-dir> && trunk fmt <module-dir>/README.md
+#            The generated block is wrapped in prettier-ignore markers (see .terraform-docs.yaml),
+#            so what terraform-docs writes is exactly what gets committed and no formatter has to
+#            run here. To fix a failure, regenerate the docs locally and commit the result:
+#              terraform-docs --config .terraform-docs.yaml <module-dir>
 #
 #            The job needs no secrets and only reads the repository, so it is safe to run on
 #            pull_request (including PRs from forks) rather than pull_request_target.
@@ -54,48 +56,41 @@ jobs:
           restore-keys: |
             v1-aqua-installer-${{ runner.os }}-${{ runner.arch }}-
 
-      - name: Install aqua
+      - name: Install aqua and the tools pinned in aqua.yaml
         uses: aquaproj/aqua-installer@96a9bc20066c5bf5e275b41019cfc165b25f4e2e # v4.0.5
         with:
           aqua_version: v2.63.0
-
-      # aqua-installer only creates the shims; the first call downloads the pinned version.
-      - name: Install terraform-docs
-        run: terraform-docs --version
-
-      # The trunk fmt pre-commit hook runs prettier over regenerated READMEs before they are
-      # committed, so CI has to apply the same formatting before comparing. The setup sub-action
-      # only installs the trunk launcher (exposed as $TRUNK_PATH); linting stays with the lint job.
-      - name: Install trunk
-        uses: trunk-io/trunk-action/setup@04ba50e7658c81db7356da96657e6e77f220bfa3 # v1.3.1
+          # The installer's default is `aqua i -l`, which only creates the shims and downloads a
+          # tool the first time it is run. Pass no options so `aqua i` downloads everything now.
+          aqua_opts: ""
 
       - name: Check terraform-docs is up to date
         shell: bash
         run: |
-          # Every directory holding .tf/.tofu files is a module, so root modules and child modules
-          # are both covered no matter how the monorepo grows. Paths are NUL-delimited end to end
-          # so directory names containing whitespace survive the pipeline.
-          count=0
-          while IFS= read -r -d '' dir; do
-            echo "::group::terraform-docs ${dir}"
-            terraform-docs --config .terraform-docs.yaml "${dir}"
-            echo "::endgroup::"
-            count=$((count + 1))
-          done < <(
-            find . -path ./.git -prune -o -name .terraform -prune -o \( -name '*.tf' -o -name '*.tofu' \) -print0 |
-              while IFS= read -r -d '' file; do printf '%s\0' "${file%/*}"; done | sort -zu
+          # 1. Find every Terraform file, skipping the .git and .terraform directories.
+          terraform_files=$(
+            find . -type d \( -name .git -o -name .terraform \) -prune -o \
+              -type f \( -name '*.tf' -o -name '*.tofu' \) -print | sort
           )
-          if ((count == 0)); then
-            echo "::error::No Terraform module directories were found, so there is nothing to check. This is almost certainly a bug in the discovery step above."
+          if [[ -z "${terraform_files}" ]]; then
+            echo "::error::No Terraform files were found, so there is nothing to check. Did the find command above change?"
             exit 1
           fi
-          echo "Regenerated docs for ${count} module directories."
 
-          # --intent-to-add also makes READMEs that terraform-docs created from scratch visible
-          # to `git diff`, so a brand new module that has no README yet is caught as well.
+          # 2. Every directory that holds one of those files is a module (root or child).
+          #    `xargs -I{}` hands dirname one whole line at a time, so paths with spaces survive.
+          module_dirs=$(echo "${terraform_files}" | xargs -I{} dirname {} | sort -u)
+          echo "Module directories to document:"
+          echo "${module_dirs}"
+
+          # 3. Regenerate the docs in each module directory. This rewrites the README in place.
+          while read -r dir; do
+            terraform-docs --config .terraform-docs.yaml "${dir}"
+          done <<< "${module_dirs}"
+
+          # 4. Any difference from what is committed means the docs are stale. --intent-to-add
+          #    makes a README that terraform-docs created from scratch show up in the diff too.
           git add --intent-to-add .
-          git diff --name-only -z | xargs -0 -r "${TRUNK_PATH}" fmt --no-progress
-
           if ! git diff --quiet; then
             echo "::error::terraform-docs output is out of date. Regenerate the docs locally and commit the result (see the comment at the top of this workflow)."
             exit 1
