@@ -57,8 +57,9 @@ output "pet_name" {
 
 ## Tests
 
-See the repository [native module test instructions](../../README.md#native-module-tests)
-for the six behavioral tests, pinned tools, and local commands used by CI.
+The repository's [native test suite](tests/random_pet.tftest.hcl) exercises
+this module with both Terraform and OpenTofu. See the
+[test instructions](../../README.md#native-module-tests) for local commands.
 
 <!-- BEGINNING OF PRE-COMMIT-TERRAFORM DOCS HOOK -->
 

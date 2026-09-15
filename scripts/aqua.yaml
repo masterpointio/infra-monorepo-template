@@ -1,8 +1,0 @@
----
-# Test-only tools. Keep the root Aqua environment unchanged for template users.
-registries:
-  - type: standard
-    ref: v4.331.0 # renovate: depName=aquaproj/aqua-registry
-packages:
-  - name: hashicorp/terraform@v1.13.3
-  - name: opentofu/opentofu@v1.12.6

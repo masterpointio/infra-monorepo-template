@@ -31,6 +31,3 @@ backend.tf.json
 **/*.bak
 **/*.*swp
 **/.DS_Store
-
-# Python test-runner bytecode
-__pycache__/

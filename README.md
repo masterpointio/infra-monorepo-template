@@ -216,24 +216,23 @@ Check out our [.trunk/trunk.yaml](.trunk/trunk.yaml) file to see how we configur
 The example [Random child module](child-modules/random-pet/) includes six native
 behavioral tests. They check defaults, custom inputs, invalid lengths, and the
 actual generated output. The final test applies only a local Random resource;
-no cloud account is needed. Downloads require network access.
+no cloud account is needed. Initial setup downloads the CLIs and Random provider.
 
-On macOS or Linux, install [Aqua](https://aquaproj.github.io/docs/install) and
-Python 3.10 or newer. From the repository root:
+Install the tools in [aqua.yaml](aqua.yaml), then run the suite from the
+repository root:
 
 ```sh
-aqua -c scripts/aqua.yaml install
-python3 scripts/test_random_pet.py terraform
-python3 scripts/test_random_pet.py tofu
+aqua install
+terraform -chdir=child-modules/random-pet init
+terraform -chdir=child-modules/random-pet test
+tofu -chdir=child-modules/random-pet init
+tofu -chdir=child-modules/random-pet test
 ```
 
-Test tools have their own [Aqua configuration](scripts/aqua.yaml); installing them
-does not change the root project's default tools. The commands above are also used
-by [CI](.github/workflows/test.yaml), which checks every pull request and push to
-`main`. Both jobs must pass; making them required is a maintainer setting.
-
-See [the module testing guide](docs/module-tests.md) for adding tests, updating
-provider locks, troubleshooting, and the limits of this example.
+The [TF Test workflow](.github/workflows/test.yaml) runs the suite with both
+Terraform and OpenTofu. See the official [Terraform tests](https://developer.hashicorp.com/terraform/language/tests)
+and [OpenTofu test](https://opentofu.org/docs/cli/commands/test/) documentation
+when adapting this example.
 
 ## Renovate to Automate Dependency Updates
 

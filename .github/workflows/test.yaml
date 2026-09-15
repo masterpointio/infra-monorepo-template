@@ -1,9 +1,10 @@
-name: Module Tests
+name: TF Test
 
 on:
   pull_request:
   push:
-    branches: [main]
+    branches:
+      - main
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
@@ -29,10 +30,20 @@ jobs:
       - uses: aquaproj/aqua-installer@ea518c135a02fc11ff8024364510c181a5c6b342 # v4.0.3
         with:
           aqua_version: v2.62.3
-          aqua_opts: -c scripts/aqua.yaml
-      - name: Check runner failure handling
-        run: python3 -m unittest discover -s scripts -p test_runner_contract.py
-      - name: Validate and run all module tests
+      - name: Install ${{ matrix.tool }}
         env:
           TEST_TOOL: ${{ matrix.tool }}
-        run: python3 scripts/test_random_pet.py "$TEST_TOOL"
+        run: |
+          aqua install --tags "$TEST_TOOL"
+      - name: Require random-pet test suite
+        run: test -s child-modules/random-pet/tests/random_pet.tftest.hcl
+      - name: Initialize random-pet
+        env:
+          TEST_TOOL: ${{ matrix.tool }}
+        run: |
+          "$TEST_TOOL" -chdir=child-modules/random-pet init -backend=false -input=false
+      - name: Test random-pet
+        env:
+          TEST_TOOL: ${{ matrix.tool }}
+        run: |
+          "$TEST_TOOL" -chdir=child-modules/random-pet test -no-color

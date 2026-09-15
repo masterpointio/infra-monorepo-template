@@ -18,7 +18,7 @@
   enabledManagers: [
     'github-actions',
     'terraform',
-    // Required by the inherited Aqua preset, including scripts/aqua.yaml.
+    // Required by the inherited Aqua preset for the pinned test CLIs.
     'custom.regex',
   ],
   terraform: {
