@@ -16,3 +16,8 @@ MD041: false
 # Ignore markdownlint/MD029
 # Error: Ordered list item prefix
 MD029: false
+
+# Ignore markdownlint/MD060 (table-column-style)
+# terraform-docs generates compact tables that prettier is told to leave alone (see the
+# prettier-ignore markers in .terraform-docs.yaml). MD060 is a formatting rule like the rest disabled here.
+MD060: false
