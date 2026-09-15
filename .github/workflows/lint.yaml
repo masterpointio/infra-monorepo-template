@@ -1,5 +1,21 @@
 name: Lint
 
+# Every pull request runs two jobs:
+#
+#   lint     Masterpoint's shared reusable lint workflow (trunk check + conventional PR title).
+#
+#   tf-docs  Enforces that the terraform-docs generated section of every module README is in
+#            sync with that module's Terraform code. Locally this is handled by the trunk
+#            `terraform-docs` pre-commit action, but a hook only runs when Terraform files are
+#            staged and can be bypassed (or skipped entirely by bots such as Renovate), so stale
+#            docs still land on main. This job regenerates the docs for every module against the
+#            PR's merge commit and fails if the result differs from what is committed.
+#
+#            To fix a failure, regenerate the docs locally and commit the result:
+#              terraform-docs --config .terraform-docs.yaml <module-dir> && trunk fmt <module-dir>/README.md
+#
+#            The job needs no secrets and only reads the repository, so it is safe to run on
+#            pull_request (including PRs from forks) rather than pull_request_target.
 on: pull_request
 
 concurrency:
@@ -16,3 +32,67 @@ jobs:
       checks: write # for trunk-action
       contents: read # for trunk-action + checkout
       pull-requests: read # for action-semantic-pull-request
+
+  tf-docs:
+    name: tf-docs
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read # needed by checkout
+    steps:
+      - name: Check out Git repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # terraform-docs is installed through aqua so CI runs exactly the version pinned in
+      # aqua.yaml: the same one developers get locally and the one Renovate keeps up to date.
+      - name: Cache aqua tools
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.local/share/aquaproj-aqua
+          key: v1-aqua-installer-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('aqua.yaml') }}
+          restore-keys: |
+            v1-aqua-installer-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Install aqua
+        uses: aquaproj/aqua-installer@96a9bc20066c5bf5e275b41019cfc165b25f4e2e # v4.0.5
+        with:
+          aqua_version: v2.63.0
+
+      # aqua-installer only creates the shims; the first call downloads the pinned version.
+      - name: Install terraform-docs
+        run: terraform-docs --version
+
+      # The trunk fmt pre-commit hook runs prettier over regenerated READMEs before they are
+      # committed, so CI has to apply the same formatting before comparing. The setup sub-action
+      # only installs the trunk launcher (exposed as $TRUNK_PATH); linting stays with the lint job.
+      - name: Install trunk
+        uses: trunk-io/trunk-action/setup@04ba50e7658c81db7356da96657e6e77f220bfa3 # v1.3.1
+
+      - name: Check terraform-docs is up to date
+        shell: bash
+        run: |
+          # Every directory holding .tf/.tofu files is a module, so root modules and child modules
+          # are both covered no matter how the monorepo grows.
+          find . -path ./.git -prune -o -name .terraform -prune -o \( -name '*.tf' -o -name '*.tofu' \) -print |
+            xargs -r -n1 dirname | sort -u |
+            while IFS= read -r dir; do
+              echo "::group::terraform-docs ${dir}"
+              terraform-docs --config .terraform-docs.yaml "${dir}"
+              echo "::endgroup::"
+            done
+
+          # --intent-to-add also makes READMEs that terraform-docs created from scratch visible
+          # to `git diff`, so a brand new module that has no README yet is caught as well.
+          git add --intent-to-add .
+          git diff --name-only -z | xargs -0 -r "${TRUNK_PATH}" fmt --no-progress
+
+          if ! git diff --quiet; then
+            echo "::error::terraform-docs output is out of date. Regenerate the docs locally and commit the result (see the comment at the top of this workflow)."
+            exit 1
+          fi
+          echo "terraform-docs output is up to date."
+
+      - name: Show stale documentation diff
+        if: failure()
+        run: git --no-pager diff

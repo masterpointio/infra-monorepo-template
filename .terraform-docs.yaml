@@ -1,3 +1,7 @@
+# terraform-docs is always run against a single module directory: locally by the trunk
+# `terraform-docs` pre-commit action and in CI by the `tf-docs` job in
+# .github/workflows/lint.yaml. Do not enable `recursive` here: its `path` is resolved
+# relative to the module being documented, which makes every per-directory run fail.
 version: 0.20.0
 formatter: markdown table
 
@@ -5,11 +9,6 @@ settings:
   anchor: false
   html: false
   lockfile: false
-
-recursive:
-  enabled: true
-  path: root-modules
-  include-main: false
 
 output:
   file: README.md

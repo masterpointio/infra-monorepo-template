@@ -59,16 +59,16 @@ output "pet_name" {
 
 ## Requirements
 
-| Name                                                                     | Version |
-| ------------------------------------------------------------------------ | ------- |
-| <a name="requirement_terraform"></a> [terraform](#requirement_terraform) | >= 1.0  |
-| <a name="requirement_random"></a> [random](#requirement_random)          | >= 3.0  |
+| Name      | Version |
+| --------- | ------- |
+| terraform | >= 1.0  |
+| random    | >= 3.0  |
 
 ## Providers
 
-| Name                                                      | Version |
-| --------------------------------------------------------- | ------- |
-| <a name="provider_random"></a> [random](#provider_random) | >= 3.0  |
+| Name   | Version |
+| ------ | ------- |
+| random | >= 3.0  |
 
 ## Modules
 
@@ -82,15 +82,15 @@ No modules.
 
 ## Inputs
 
-| Name                                                | Description                       | Type     | Default | Required |
-| --------------------------------------------------- | --------------------------------- | -------- | ------- | :------: |
-| <a name="input_length"></a> [length](#input_length) | The length of the random name.    | `number` | `2`     |    no    |
-| <a name="input_prefix"></a> [prefix](#input_prefix) | A string to prefix the name with. | `string` | `null`  |    no    |
+| Name   | Description                       | Type     | Default | Required |
+| ------ | --------------------------------- | -------- | ------- | :------: |
+| length | The length of the random name.    | `number` | `2`     |    no    |
+| prefix | A string to prefix the name with. | `string` | `null`  |    no    |
 
 ## Outputs
 
-| Name                                                                             | Description                   |
-| -------------------------------------------------------------------------------- | ----------------------------- |
-| <a name="output_random_pet_name"></a> [random_pet_name](#output_random_pet_name) | The generated random pet name |
+| Name              | Description                   |
+| ----------------- | ----------------------------- |
+| random\_pet\_name | The generated random pet name |
 
 <!-- END OF PRE-COMMIT-TERRAFORM DOCS HOOK -->

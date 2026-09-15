@@ -39,7 +39,7 @@ This approach ensures that:
 | Name      | Version  |
 | --------- | -------- |
 | terraform | 1.13.3   |
-| random    | ~> 3.7.2 |
+| random    | ~> 3.9.0 |
 
 ## Providers
 
@@ -47,9 +47,9 @@ No providers.
 
 ## Modules
 
-| Name       | Source                         | Version |
-| ---------- | ------------------------------ | ------- |
-| random_pet | ../../child-modules/random-pet | n/a     |
+| Name        | Source                         | Version |
+| ----------- | ------------------------------ | ------- |
+| random\_pet | ../../child-modules/random-pet | n/a     |
 
 ## Resources
 
@@ -64,8 +64,8 @@ No resources.
 
 ## Outputs
 
-| Name            | Description                   |
-| --------------- | ----------------------------- |
-| random_pet_name | The generated random pet name |
+| Name              | Description                   |
+| ----------------- | ----------------------------- |
+| random\_pet\_name | The generated random pet name |
 
 <!-- END OF PRE-COMMIT-TERRAFORM DOCS HOOK -->

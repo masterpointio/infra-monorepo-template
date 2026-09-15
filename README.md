@@ -199,6 +199,7 @@ There are many tools to format, lint, and ensure consistency of TF code. The too
    1. [This is handled by the trunk `terraform` or `tofu` linter](https://docs.trunk.io/code-quality/linters/supported/tofu).
 3. Generate documentation for our TF code with `terraform-docs` and ensure it is kept up-to-date on each commit.
    1. [This is handled by the trunk `terraform-docs` action](https://github.com/trunk-io/plugins/tree/main/actions/terraform-docs), which [Masterpoint originally developed](https://github.com/trunk-io/plugins/pull/966).
+   2. A pre-commit hook only runs when TF files are staged and can be bypassed (Renovate's provider bumps skip it entirely, for example), so the `tf-docs` job in [.github/workflows/lint.yaml](.github/workflows/lint.yaml) also regenerates the docs for every module on each PR and fails if they differ from what is committed. This is how we enforce that TF docs are always consistent with the code.
 4. Run TFLint against our code to ensure it is written against the best practices.
    1. [This is handled by the trunk `tflint` linter](https://docs.trunk.io/code-quality/linters/supported/tflint).
 5. Run a TF security scan against our code to ensure we're not introducing any security vulnerabilities.
