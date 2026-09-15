@@ -59,10 +59,10 @@ def check_results(output, tool, required=None):
     return len(runs)
 
 
-def run_process(command, *, cwd, env, timeout):
+def run_process(command, *, cwd, env, timeout, text=True):
     """Capture a command; stop its whole process group on timeout or cancellation."""
     process = subprocess.Popen(
-        command, cwd=cwd, env=env, text=True,
+        command, cwd=cwd, env=env, text=text,
         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
         start_new_session=(os.name == "posix"),
     )
@@ -90,8 +90,8 @@ def run_process(command, *, cwd, env, timeout):
         finally:
             # A descendant can outlive its parent even after closing its pipes.
             stop(force=True)
-        print(stdout, end="", flush=True)
-        print(stderr, end="", file=sys.stderr, flush=True)
+        print(stdout if text else stdout.decode('utf-8', errors='replace'), end="", flush=True)
+        print(stderr if text else stderr.decode('utf-8', errors='replace'), end="", file=sys.stderr, flush=True)
         raise
     stop(force=True)  # Do not leave detached descendants after a successful parent exit.
     return subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
