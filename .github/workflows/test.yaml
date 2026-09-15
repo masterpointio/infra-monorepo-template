@@ -1,0 +1,49 @@
+name: TF Test
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  random-pet:
+    name: random-pet (${{ matrix.tool }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        tool: [terraform, tofu]
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: aquaproj/aqua-installer@ea518c135a02fc11ff8024364510c181a5c6b342 # v4.0.3
+        with:
+          aqua_version: v2.62.3
+      - name: Install ${{ matrix.tool }}
+        env:
+          TEST_TOOL: ${{ matrix.tool }}
+        run: |
+          aqua install --tags "$TEST_TOOL"
+      - name: Require random-pet test suite
+        run: test -s child-modules/random-pet/tests/random_pet.tftest.hcl
+      - name: Initialize random-pet
+        env:
+          TEST_TOOL: ${{ matrix.tool }}
+        run: |
+          "$TEST_TOOL" -chdir=child-modules/random-pet init -backend=false -input=false
+      - name: Test random-pet
+        env:
+          TEST_TOOL: ${{ matrix.tool }}
+        run: |
+          "$TEST_TOOL" -chdir=child-modules/random-pet test -no-color

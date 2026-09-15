@@ -11,8 +11,9 @@ This includes example configurations and recommendations around the following to
 3. [Recommendations for version pinning TF + Providers](#versioning-tf-and-providers)
 4. [Managing which TF binary is used per project using Aqua](#managing-which-tf-binary-is-used-per-project-using-aqua)
 5. [Guidance on linting + CI for TF](#tf-linting--ci)
-6. [Renovate to Automate Dependency Updates](#renovate-to-automate-dependency-updates)
-7. [Frequently Asked Questions](#frequently-asked-questions)
+6. [Native module tests](#native-module-tests)
+7. [Renovate to Automate Dependency Updates](#renovate-to-automate-dependency-updates)
+8. [Frequently Asked Questions](#frequently-asked-questions)
 
 ## Structure
 
@@ -209,6 +210,29 @@ There are many tools to format, lint, and ensure consistency of TF code. The too
 As you can see, this is a LOT of checks that trunk is supporting for us and this consolidation on one tool to support this (and much more) is a huge win.
 
 Check out our [.trunk/trunk.yaml](.trunk/trunk.yaml) file to see how we configure this and [check the trunk Code Quality getting started documentation](https://docs.trunk.io/code-quality) on how you can use this tool for your own project.
+
+## Native module tests
+
+The example [Random child module](child-modules/random-pet/) includes six native
+behavioral tests. They check defaults, custom inputs, invalid lengths, and the
+actual generated output. The final test applies only a local Random resource;
+no cloud account is needed. Initial setup downloads the CLIs and Random provider.
+
+Install the tools in [aqua.yaml](aqua.yaml), then run the suite from the
+repository root:
+
+```sh
+aqua install
+terraform -chdir=child-modules/random-pet init
+terraform -chdir=child-modules/random-pet test
+tofu -chdir=child-modules/random-pet init
+tofu -chdir=child-modules/random-pet test
+```
+
+The [TF Test workflow](.github/workflows/test.yaml) runs the suite with both
+Terraform and OpenTofu. See the official [Terraform tests](https://developer.hashicorp.com/terraform/language/tests)
+and [OpenTofu test](https://opentofu.org/docs/cli/commands/test/) documentation
+when adapting this example.
 
 ## Renovate to Automate Dependency Updates
 
