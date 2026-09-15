@@ -73,14 +73,23 @@ jobs:
         shell: bash
         run: |
           # Every directory holding .tf/.tofu files is a module, so root modules and child modules
-          # are both covered no matter how the monorepo grows.
-          find . -path ./.git -prune -o -name .terraform -prune -o \( -name '*.tf' -o -name '*.tofu' \) -print |
-            xargs -r -n1 dirname | sort -u |
-            while IFS= read -r dir; do
-              echo "::group::terraform-docs ${dir}"
-              terraform-docs --config .terraform-docs.yaml "${dir}"
-              echo "::endgroup::"
-            done
+          # are both covered no matter how the monorepo grows. Paths are NUL-delimited end to end
+          # so directory names containing whitespace survive the pipeline.
+          count=0
+          while IFS= read -r -d '' dir; do
+            echo "::group::terraform-docs ${dir}"
+            terraform-docs --config .terraform-docs.yaml "${dir}"
+            echo "::endgroup::"
+            count=$((count + 1))
+          done < <(
+            find . -path ./.git -prune -o -name .terraform -prune -o \( -name '*.tf' -o -name '*.tofu' \) -print0 |
+              while IFS= read -r -d '' file; do printf '%s\0' "${file%/*}"; done | sort -zu
+          )
+          if ((count == 0)); then
+            echo "::error::No Terraform module directories were found, so there is nothing to check. This is almost certainly a bug in the discovery step above."
+            exit 1
+          fi
+          echo "Regenerated docs for ${count} module directories."
 
           # --intent-to-add also makes READMEs that terraform-docs created from scratch visible
           # to `git diff`, so a brand new module that has no README yet is caught as well.
