@@ -33,13 +33,13 @@ This approach ensures that:
 <!-- README TEMPLATE: ENDING DELETE MARKER -->
 
 <!-- BEGINNING OF PRE-COMMIT-TERRAFORM DOCS HOOK -->
-
+<!-- prettier-ignore-start -->
 ## Requirements
 
-| Name      | Version  |
-| --------- | -------- |
-| terraform | 1.13.3   |
-| random    | ~> 3.7.2 |
+| Name | Version |
+|------|---------|
+| terraform | 1.13.3 |
+| random | ~> 3.9.0 |
 
 ## Providers
 
@@ -47,9 +47,9 @@ No providers.
 
 ## Modules
 
-| Name       | Source                         | Version |
-| ---------- | ------------------------------ | ------- |
-| random_pet | ../../child-modules/random-pet | n/a     |
+| Name | Source | Version |
+|------|--------|---------|
+| random\_pet | ../../child-modules/random-pet | n/a |
 
 ## Resources
 
@@ -57,15 +57,15 @@ No resources.
 
 ## Inputs
 
-| Name   | Description                                 | Type     | Default    | Required |
-| ------ | ------------------------------------------- | -------- | ---------- | :------: |
-| length | The length of the random name               | `number` | `2`        |    no    |
-| prefix | The prefix to prepend to the generated name | `string` | `"random"` |    no    |
+| Name | Description | Type | Default | Required |
+|------|-------------|------|---------|:--------:|
+| length | The length of the random name | `number` | `2` | no |
+| prefix | The prefix to prepend to the generated name | `string` | `"random"` | no |
 
 ## Outputs
 
-| Name            | Description                   |
-| --------------- | ----------------------------- |
-| random_pet_name | The generated random pet name |
-
+| Name | Description |
+|------|-------------|
+| random\_pet\_name | The generated random pet name |
+<!-- prettier-ignore-end -->
 <!-- END OF PRE-COMMIT-TERRAFORM DOCS HOOK -->
