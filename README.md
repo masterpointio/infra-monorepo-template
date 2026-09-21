@@ -229,8 +229,14 @@ tofu -chdir=child-modules/random-pet init
 tofu -chdir=child-modules/random-pet test
 ```
 
-The [TF Test workflow](.github/workflows/test.yaml) runs the suite with both
-Terraform and OpenTofu. See the official [Terraform tests](https://developer.hashicorp.com/terraform/language/tests)
+The [TF Test workflow](.github/workflows/test.yaml) delegates to Masterpoint's shared
+[tf-test workflow](https://github.com/masterpointio/actions/blob/main/.github/workflows/tf-test.yaml),
+which discovers every directory containing `*.tftest.hcl` files and runs each one against
+both Terraform and OpenTofu in parallel. Adding a new child module with tests requires no
+CI changes. If your tests need cloud credentials, set the `TF_TEST_AWS_ROLE_ARN` repository
+or organization variable to a role the workflow can assume via OIDC.
+
+See the official [Terraform tests](https://developer.hashicorp.com/terraform/language/tests)
 and [OpenTofu test](https://opentofu.org/docs/cli/commands/test/) documentation
 when adapting this example.
 
