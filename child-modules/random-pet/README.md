@@ -55,6 +55,12 @@ output "pet_name" {
 
 <!-- README TEMPLATE: ENDING DELETE MARKER -->
 
+## Tests
+
+The repository's [native test suite](tests/random_pet.tftest.hcl) exercises
+this module with both Terraform and OpenTofu. See the
+[test instructions](../../README.md#native-module-tests) for local commands.
+
 <!-- BEGINNING OF PRE-COMMIT-TERRAFORM DOCS HOOK -->
 <!-- prettier-ignore-start -->
 ## Requirements

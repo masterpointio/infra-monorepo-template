@@ -1,0 +1,27 @@
+name: TF Test
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  # Discovers every directory holding *.tftest.hcl files and tests each one
+  # against both Terraform and OpenTofu, using the CLI versions pinned in aqua.yaml.
+  tf-test:
+    uses: masterpointio/actions/.github/workflows/tf-test.yaml@29a77cce711f10ead0ca4815802f254f752ad6d3 #v0.4.0
+    with:
+      aws_role_arn: ${{ vars.TF_TEST_AWS_ROLE_ARN }}
+    permissions:
+      actions: read # needed by github-action-tf-test
+      checks: write # needed by github-action-tf-test
+      contents: read # needed by github-action-tf-test
+      id-token: write # needed by github-action-tf-test
+      pull-requests: read # needed by github-action-tf-test
