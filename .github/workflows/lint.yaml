@@ -1,5 +1,23 @@
 name: Lint
 
+# Every pull request runs two jobs:
+#
+#   lint     Masterpoint's shared reusable lint workflow (trunk check + conventional PR title).
+#
+#   tf-docs  Enforces that the terraform-docs generated section of every module README is in
+#            sync with that module's Terraform code. Locally this is handled by the trunk
+#            `terraform-docs` pre-commit action, but a hook only runs when Terraform files are
+#            staged and can be bypassed (or skipped entirely by bots such as Renovate), so stale
+#            docs still land on main. This job regenerates the docs for every module against the
+#            PR's merge commit and fails if the result differs from what is committed.
+#
+#            The generated block is wrapped in prettier-ignore markers (see .terraform-docs.yaml),
+#            so what terraform-docs writes is exactly what gets committed and no formatter has to
+#            run here. To fix a failure, regenerate the docs locally and commit the result:
+#              terraform-docs --config .terraform-docs.yaml <module-dir>
+#
+#            The job needs no secrets and only reads the repository, so it is safe to run on
+#            pull_request (including PRs from forks) rather than pull_request_target.
 on: pull_request
 
 concurrency:
@@ -16,3 +34,69 @@ jobs:
       checks: write # for trunk-action
       contents: read # for trunk-action + checkout
       pull-requests: read # for action-semantic-pull-request
+
+  tf-docs:
+    name: tf-docs
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read # needed by checkout
+    steps:
+      - name: Check out Git repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # terraform-docs is installed through aqua so CI runs exactly the version pinned in
+      # aqua.yaml: the same one developers get locally and the one Renovate keeps up to date.
+      - name: Cache aqua tools
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.local/share/aquaproj-aqua
+          key: v1-aqua-installer-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('aqua.yaml') }}
+          restore-keys: |
+            v1-aqua-installer-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Install aqua and the tools pinned in aqua.yaml
+        uses: aquaproj/aqua-installer@96a9bc20066c5bf5e275b41019cfc165b25f4e2e # v4.0.5
+        with:
+          aqua_version: v2.63.0
+          # The installer's default is `aqua i -l`, which only creates the shims and downloads a
+          # tool the first time it is run. Pass no options so `aqua i` downloads everything now.
+          aqua_opts: ""
+
+      - name: Check terraform-docs is up to date
+        shell: bash
+        run: |
+          # 1. Find every Terraform file, skipping the .git and .terraform directories.
+          terraform_files=$(
+            find . -type d \( -name .git -o -name .terraform \) -prune -o \
+              -type f \( -name '*.tf' -o -name '*.tofu' \) -print | sort
+          )
+          if [[ -z "${terraform_files}" ]]; then
+            echo "::error::No Terraform files were found, so there is nothing to check. Did the find command above change?"
+            exit 1
+          fi
+
+          # 2. Every directory that holds one of those files is a module (root or child).
+          #    `xargs -I{}` hands dirname one whole line at a time, so paths with spaces survive.
+          module_dirs=$(echo "${terraform_files}" | xargs -I{} dirname {} | sort -u)
+          echo "Module directories to document:"
+          echo "${module_dirs}"
+
+          # 3. Regenerate the docs in each module directory. This rewrites the README in place.
+          while read -r dir; do
+            terraform-docs --config .terraform-docs.yaml "${dir}"
+          done <<< "${module_dirs}"
+
+          # 4. Any difference from what is committed means the docs are stale. --intent-to-add
+          #    makes a README that terraform-docs created from scratch show up in the diff too.
+          git add --intent-to-add .
+          if ! git diff --quiet; then
+            echo "::error::terraform-docs output is out of date. Regenerate the docs locally and commit the result (see the comment at the top of this workflow)."
+            exit 1
+          fi
+          echo "terraform-docs output is up to date."
+
+      - name: Show stale documentation diff
+        if: failure()
+        run: git --no-pager diff
