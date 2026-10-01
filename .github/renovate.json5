@@ -1,7 +1,7 @@
 {
   extends: [
     'config:best-practices',
-    'github>aquaproj/aqua-renovate-config#2.7.5',
+    'github>aquaproj/aqua-renovate-config#2.13.0',
   ],
   schedule: [
     'before 5am on Monday',
