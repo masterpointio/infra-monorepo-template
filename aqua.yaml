@@ -13,7 +13,7 @@ packages:
   - name: hashicorp/terraform@v1.13.3
     tags:
       - terraform
-  - name: opentofu/opentofu@v1.12.6
+  - name: opentofu/opentofu@v1.13.1
     tags:
       - tofu
   - name: terraform-docs/terraform-docs@v0.20.0
