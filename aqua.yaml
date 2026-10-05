@@ -16,6 +16,6 @@ packages:
   - name: opentofu/opentofu@v1.12.6
     tags:
       - tofu
-  - name: terraform-docs/terraform-docs@v0.20.0
+  - name: terraform-docs/terraform-docs@v0.24.0
     tags:
       - docs
