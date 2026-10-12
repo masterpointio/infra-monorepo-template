@@ -59,7 +59,7 @@ jobs:
       - name: Install aqua and the tools pinned in aqua.yaml
         uses: aquaproj/aqua-installer@96a9bc20066c5bf5e275b41019cfc165b25f4e2e # v4.0.5
         with:
-          aqua_version: v2.63.0
+          aqua_version: v2.64.0
           # The installer's default is `aqua i -l`, which only creates the shims and downloads a
           # tool the first time it is run. Pass no options so `aqua i` downloads everything now.
           aqua_opts: ""
