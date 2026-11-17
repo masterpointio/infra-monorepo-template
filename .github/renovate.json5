@@ -13,12 +13,13 @@
   labels: [
     'auto-upgrade',
   ],
-  dependencyDashboardAutoclose: true,
+  dependencyDashboard: {
+    autoclose: true,
+  },
   minimumReleaseAge: '3 days',
   enabledManagers: [
     'github-actions',
     'terraform',
-    // Required by the inherited Aqua preset for the pinned test CLIs.
     'custom.regex',
   ],
   terraform: {
